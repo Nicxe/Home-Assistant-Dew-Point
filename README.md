@@ -10,12 +10,12 @@
 This integration calculates the **dew point temperature** based on data from a temperature sensor and a humidity sensor. The dew point is a key measure of thermal comfort and indicates the temperature at which air becomes saturated with moisture.
 
 
-
+If you're interested in related integrations, check out my [Feels Like (Apparent Temperature)](https://github.com/Nicxe/felt_temperature) integration.
 
 <details>
 <summary>Uses the Arden Buck equation for accurate dew point estimation</summary>
 
-## How Arden Buck's Equation Works
+### How Arden Buck's Equation Works
 The integration uses **[Arden Buck's equation](https://yaga.no/wp-content/uploads/2021/11/Dewpoint-Equations.pdf)** to calculate the dew point. Here's a simplified explanation of how the calculation works:
 
 1. **Saturation Vapor Pressure** (`e_s`):  
