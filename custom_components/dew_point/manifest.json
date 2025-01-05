@@ -1,0 +1,10 @@
+{
+  "domain": "dew_point",
+  "name": "Dew Point",
+  "codeowners": ["@Nicxe"],
+  "config_flow": true,
+  "documentation": "https://github.com/Nicxe/home-assistant-dew_points",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/Nicxe/home-assistant-dew_points/issues",
+  "version": "0.1.0"
+}
