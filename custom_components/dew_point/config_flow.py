@@ -80,11 +80,7 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
-    """
-    Options flow för en befintlig Dew Point-instans.
-    Ärver från OptionsFlowWithConfigEntry för att slippa explicit self.config_entry.
-    """
-
+ 
     async def async_step_init(self, user_input=None):
         """Visas när användaren trycker på 'Konfigurera' för en redan installerad integration."""
         if user_input is not None:
