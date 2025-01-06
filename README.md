@@ -52,7 +52,7 @@ To install the custom component using HACS:
 <summary>Without HACS</summary>
 
 1. Download the latest release of the SMHI Alert integration from **[GitHub Releases](https://github.com/Nicxe/home-assistant-dew-point/releases)**.
-2. Extract the downloaded files and place the `smhi_alerts` folder in your Home Assistant `custom_components` directory (usually located in the `config/custom_components` directory).
+2. Extract the downloaded files and place the `dew_point` folder in your Home Assistant `custom_components` directory (usually located in the `config/custom_components` directory).
 3. Restart your Home Assistant instance to load the new integration.
 
 </details>
@@ -62,12 +62,16 @@ To install the custom component using HACS:
 To add the integration to your Home Assistant instance, use the button below:
 
 
-
 <p>
     <a href="https://my.home-assistant.io/redirect/config_flow_start?domain=dew_point" class="my badge" target="_blank">
         <img src="https://my.home-assistant.io/badges/config_flow_start.svg">
     </a>
 </p>
+
+> [!TIP]
+> You can easily set up multiple dew point sensors for different locations by clicking Add Entry on the Dew Point integration page in Home Assistant. No YAML configuration is required, and each sensor can have its own unique setup.
+
+
 
 ### Manual Configuration
 
@@ -76,6 +80,6 @@ If the button above does not work, you can also perform the following steps manu
 1. Browse to your Home Assistant instance.
 2. Go to **Settings > Devices & Services**.
 3. In the bottom right corner, select the **Add Integration** button.
-4. From the list, select **SMHI Alerts**.
+4. From the list, select **Dew Point**.
 5. Follow the on-screen instructions to complete the setup.
 
