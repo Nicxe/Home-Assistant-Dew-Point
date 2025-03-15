@@ -1,4 +1,4 @@
-"""GUI-baserad konfiguration för Dew Point-integrationen."""
+"""GUI-based configuration for the Dew Point integration."""
 import logging
 import voluptuous as vol
 
@@ -25,12 +25,12 @@ DEFAULT_NAME = "Dew Point"
 
 
 class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Hanterar första installationen av Dew Point."""
+    """Handles the initial installation of Dew Point."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input=None):
-        """Konfigurationssteg när användaren installerar integrationen första gången."""
+        """Configuration step when the user installs the integration for the first time."""
         errors = {}
 
         if user_input is not None:
@@ -50,16 +50,16 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
                 vol.Required(CONF_TEMPERATURE_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
+                    EntitySelectorConfig(domain="sensor", device_class="temperature")
                 ),
                 vol.Required(CONF_HUMIDITY_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
+                    EntitySelectorConfig(domain="sensor", device_class="humidity")
                 ),
                 vol.Required(CONF_DECIMAL_PLACES, default=1): NumberSelector(
                     NumberSelectorConfig(
                         min=0,
                         max=15,
-                        step=1,  # Endast heltal
+                        step=1,  # Only integers
                         mode="box",
                         unit_of_measurement="decimals"
                     )
@@ -75,14 +75,14 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     def async_get_options_flow(config_entry):
-        """Aktivera 'Konfigurera'-knappen och peka på vår OptionsFlow-klass."""
+        """Enable the 'Configure' button and point to our OptionsFlow class."""
         return DewpointOptionsFlowHandler(config_entry)
 
 
 class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
  
     async def async_step_init(self, user_input=None):
-        """Visas när användaren trycker på 'Konfigurera' för en redan installerad integration."""
+        """Displayed when the user presses 'Configure' for an already installed integration."""
         if user_input is not None:
             decimal_places = int(user_input[CONF_DECIMAL_PLACES])
 
@@ -95,7 +95,7 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
                 },
             )
 
-        # Nu når vi config_entry via self._config_entry
+        # Now we access config_entry via self._config_entry
         data = dict(self._config_entry.data)
         options = dict(self._config_entry.options)
 
@@ -112,10 +112,10 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
         schema = vol.Schema(
             {
                 vol.Required(CONF_TEMPERATURE_SENSOR, default=temperature_sensor): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
+                    EntitySelectorConfig(domain="sensor", device_class="temperature")
                 ),
                 vol.Required(CONF_HUMIDITY_SENSOR, default=humidity_sensor): EntitySelector(
-                    EntitySelectorConfig(domain="sensor")
+                    EntitySelectorConfig(domain="sensor",  device_class="humidity")
                 ),
                 vol.Required(CONF_DECIMAL_PLACES, default=decimal_places): NumberSelector(
                     NumberSelectorConfig(
