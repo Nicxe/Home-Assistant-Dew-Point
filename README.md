@@ -83,3 +83,8 @@ If the button above does not work, you can also perform the following steps manu
 4. From the list, select **Dew Point**.
 5. Follow the on-screen instructions to complete the setup.
 
+
+## Translations
+
+This integration includes built-in English texts and can be translated into other languages.
+Contributions are welcome in the files under `custom_components/dew_point/translations/`.

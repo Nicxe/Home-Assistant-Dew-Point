@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "config_step_user_title"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "options_step_init_title"
+      }
+    }
+  }
+}
