@@ -3,7 +3,7 @@
   "name": "Dew Point",
   "codeowners": ["@Nicxe"],
   "config_flow": true,
-  "documentation": "https://github.com/Nicxe/home-assistant-dew-point",
+  "documentation": "https://github.com/Nicxe/home-assistant-dew-point/blob/main/README.md",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Nicxe/home-assistant-dew-point/issues",
   "version": "0.2.0"

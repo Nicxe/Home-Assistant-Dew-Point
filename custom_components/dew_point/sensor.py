@@ -93,6 +93,9 @@ class DewPointSensor(SensorEntity):
         self._entity_rel_hum = entity_rel_hum
         self._decimal_places = decimal_places
 
+        self._unsub_listener = None
+        self._startup_handle = None
+
         self._dry_temp_value = None  # °C
         self._rel_hum_value = None   # 0–1
 
@@ -111,17 +114,26 @@ class DewPointSensor(SensorEntity):
         @callback
         def sensor_startup(_event):
             """Set up event listeners and wait a while before the first update."""
-            async_track_state_change_event(
+            self._unsub_listener = async_track_state_change_event(
                 self.hass,
                 [self._entity_dry_temp, self._entity_rel_hum],
-                sensor_state_listener
+                sensor_state_listener,
             )
-            self.hass.loop.call_later(
+            self._startup_handle = self.hass.loop.call_later(
                 self.delay_seconds,
-                lambda: self.async_schedule_update_ha_state(True)
+                lambda: self.async_schedule_update_ha_state(True),
             )
 
         self.hass.bus.async_listen_once("homeassistant_started", sensor_startup)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up listeners when entity is removed."""
+        if self._unsub_listener is not None:
+            self._unsub_listener()
+            self._unsub_listener = None
+        if self._startup_handle is not None:
+            self._startup_handle.cancel()
+            self._startup_handle = None
 
     @property
     def extra_state_attributes(self):

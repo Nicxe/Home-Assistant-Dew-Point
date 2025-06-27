@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Dew Point"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Dew Point options"
+      }
+    }
+  }
+}
