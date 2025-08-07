@@ -191,7 +191,8 @@ class DewPointSensor(SensorEntity):
         else:
             self._attr_native_value = None
 
-        self.async_write_ha_state()
+        if self.entity_id:
+            self.async_write_ha_state()
 
     @callback
     def _parse_temp_state(self, state: Optional[State]) -> Optional[float]:
