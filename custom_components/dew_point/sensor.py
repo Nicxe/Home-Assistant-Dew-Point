@@ -4,23 +4,28 @@ Arden Buck equation, dynamic decimals, and support for options flow.
 """
 import logging
 import math
+from typing import Optional
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, callback, State
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import (
     SensorEntity,
     SensorDeviceClass,
     SensorStateClass,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change_event, async_call_later
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     UnitOfTemperature,
+    EVENT_HOMEASSISTANT_STARTED,
+    STATE_UNKNOWN,
+    STATE_UNAVAILABLE,
+    PERCENTAGE,
 )
 from homeassistant.util import slugify, convert
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from . import DOMAIN
+# from . import DOMAIN  # unused
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,10 +101,10 @@ class DewPointSensor(SensorEntity):
         self._unsub_listener = None
         self._startup_handle = None
 
-        self._dry_temp_value = None  # °C
-        self._rel_hum_value = None   # 0–1
+        self._dry_temp_value: Optional[float] = None  # °C
+        self._rel_hum_value: Optional[float] = None   # 0–1
 
-        self._attr_native_value = None
+        self._attr_native_value: Optional[float] = None
 
         # Delay to give sensors time to become available
         self.delay_seconds = 10
@@ -108,23 +113,34 @@ class DewPointSensor(SensorEntity):
         """When the sensor is added to HA."""
         @callback
         def sensor_state_listener(event):
-            """Listen to state_changed event and update the dew point."""
-            self.async_schedule_update_ha_state(True)
+            """Listen to state_changed event and update the dew point without full refresh."""
+            entity_id = event.data.get("entity_id")
+            new_state: Optional[State] = event.data.get("new_state")
+
+            if entity_id == self._entity_dry_temp:
+                self._dry_temp_value = self._parse_temp_state(new_state)
+            elif entity_id == self._entity_rel_hum:
+                self._rel_hum_value = self._parse_hum_state(new_state)
+            else:
+                return
+
+            self._recalculate_and_write_state()
 
         @callback
         def sensor_startup(_event):
-            """Set up event listeners and wait a while before the first update."""
+            """Set up event listeners and perform initial refresh after delay."""
             self._unsub_listener = async_track_state_change_event(
                 self.hass,
                 [self._entity_dry_temp, self._entity_rel_hum],
                 sensor_state_listener,
             )
-            self._startup_handle = self.hass.loop.call_later(
+            self._startup_handle = async_call_later(
+                self.hass,
                 self.delay_seconds,
-                lambda: self.async_schedule_update_ha_state(True),
+                lambda *_: self._initial_refresh(),
             )
 
-        self.hass.bus.async_listen_once("homeassistant_started", sensor_startup)
+        self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, sensor_startup)
 
     async def async_will_remove_from_hass(self) -> None:
         """Clean up listeners when entity is removed."""
@@ -141,47 +157,59 @@ class DewPointSensor(SensorEntity):
         return {
             "temperature": self._dry_temp_value,
             "humidity": (
-                round(self._rel_hum_value * 100, 1) 
-                if self._rel_hum_value is not None 
+                round(self._rel_hum_value * 100, 1)
+                if self._rel_hum_value is not None
                 else None
             ),
-            "decimal_places": self._decimal_places
+            "decimal_places": self._decimal_places,
         }
 
+    @property
+    def should_poll(self) -> bool:
+        return False
+
     async def async_update(self):
-        """Fetch values and calculate the dew point."""
-        dry_temp = self._get_dry_temp(self._entity_dry_temp)
-        rel_hum = self._get_rel_hum(self._entity_rel_hum)
+        """Fetch values and calculate the dew point (fallback when HA requests update)."""
+        self._dry_temp_value = self._get_dry_temp(self._entity_dry_temp)
+        self._rel_hum_value = self._get_rel_hum(self._entity_rel_hum)
+        self._recalculate_and_write_state()
 
-        self._dry_temp_value = dry_temp
-        self._rel_hum_value = rel_hum
+    @callback
+    def _initial_refresh(self) -> None:
+        """Populate internal cache from current states and calculate dew point."""
+        self._dry_temp_value = self._get_dry_temp(self._entity_dry_temp)
+        self._rel_hum_value = self._get_rel_hum(self._entity_rel_hum)
+        self._recalculate_and_write_state()
 
-        if dry_temp is not None and rel_hum is not None:
-            dew_point = _calculate_dew_point_arden_buck(dry_temp, rel_hum)
-            if dew_point is not None:
-                self._attr_native_value = round(dew_point, self._decimal_places)
-            else:
-                self._attr_native_value = None
+    @callback
+    def _recalculate_and_write_state(self) -> None:
+        if self._dry_temp_value is not None and self._rel_hum_value is not None:
+            dew_point = _calculate_dew_point_arden_buck(self._dry_temp_value, self._rel_hum_value)
+            self._attr_native_value = (
+                round(dew_point, self._decimal_places) if dew_point is not None else None
+            )
         else:
             self._attr_native_value = None
 
+        self.async_write_ha_state()
+
     @callback
-    def _get_dry_temp(self, entity_id):
-        """Read and convert temperature from sensor in °C."""
-        state = self.hass.states.get(entity_id)
-        if not state or state.state in [None, "unknown", "unavailable"]:
-            _LOGGER.debug("Temperature sensor %s is unavailable.", entity_id)
+    def _parse_temp_state(self, state: Optional[State]) -> Optional[float]:
+        if not state or state.state in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
+            _LOGGER.debug("Temperature sensor %s is unavailable.", self._entity_dry_temp)
             return None
 
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
         value_str = state.state
         value_float = convert(value_str, float)
-
         if value_float is None:
-            _LOGGER.error("Cannot interpret temperature value (%s) from %s.", value_str, entity_id)
+            _LOGGER.error(
+                "Cannot interpret temperature value (%s) from %s.",
+                value_str,
+                self._entity_dry_temp,
+            )
             return None
 
-        # If the unit is °F, convert to °C. Otherwise, if already °C, keep.
         if unit in (UnitOfTemperature.FAHRENHEIT, UnitOfTemperature.CELSIUS):
             try:
                 return TemperatureConverter.convert(
@@ -191,15 +219,17 @@ class DewPointSensor(SensorEntity):
                 _LOGGER.error("Error in temperature conversion: %s", ex)
                 return None
 
-        _LOGGER.error("Sensor %s has unit measure %s, not supported (only °C/°F).", entity_id, unit)
+        _LOGGER.error(
+            "Sensor %s has unit measure %s, not supported (only °C/°F).",
+            self._entity_dry_temp,
+            unit,
+        )
         return None
 
     @callback
-    def _get_rel_hum(self, entity_id):
-        """Read and convert relative humidity (0–1) from sensor."""
-        state = self.hass.states.get(entity_id)
-        if not state or state.state in [None, "unknown", "unavailable"]:
-            _LOGGER.debug("Humidity sensor %s is unavailable.", entity_id)
+    def _parse_hum_state(self, state: Optional[State]) -> Optional[float]:
+        if not state or state.state in [None, STATE_UNKNOWN, STATE_UNAVAILABLE]:
+            _LOGGER.debug("Humidity sensor %s is unavailable.", self._entity_rel_hum)
             return None
 
         value_str = state.state
@@ -207,15 +237,37 @@ class DewPointSensor(SensorEntity):
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
 
         if value_float is None:
-            _LOGGER.error("Cannot interpret humidity value (%s) from %s.", value_str, entity_id)
+            _LOGGER.error(
+                "Cannot interpret humidity value (%s) from %s.",
+                value_str,
+                self._entity_rel_hum,
+            )
             return None
 
-        if unit != "%":
-            _LOGGER.error("Sensor %s has unit measure %s, not supported (only %%).", entity_id, unit)
+        if unit != PERCENTAGE:
+            _LOGGER.error(
+                "Sensor %s has unit measure %s, not supported (only %%).",
+                self._entity_rel_hum,
+                unit,
+            )
             return None
 
         if not (0 <= value_float <= 100):
-            _LOGGER.error("Humidity sensor %s reports value outside 0–100%%: %s", entity_id, value_float)
+            _LOGGER.error(
+                "Humidity sensor %s reports value outside 0–100%%: %s",
+                self._entity_rel_hum,
+                value_float,
+            )
             return None
 
         return value_float / 100.0
+
+    @callback
+    def _get_dry_temp(self, entity_id: str) -> Optional[float]:
+        state = self.hass.states.get(entity_id)
+        return self._parse_temp_state(state)
+
+    @callback
+    def _get_rel_hum(self, entity_id: str) -> Optional[float]:
+        state = self.hass.states.get(entity_id)
+        return self._parse_hum_state(state)
