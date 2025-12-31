@@ -50,10 +50,10 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
                 vol.Required(CONF_TEMPERATURE_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", device_class="temperature")
+                    EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Required(CONF_HUMIDITY_SENSOR): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", device_class="humidity")
+                    EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Required(CONF_DECIMAL_PLACES, default=1): NumberSelector(
                     NumberSelectorConfig(
@@ -112,10 +112,10 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
         schema = vol.Schema(
             {
                 vol.Required(CONF_TEMPERATURE_SENSOR, default=temperature_sensor): EntitySelector(
-                    EntitySelectorConfig(domain="sensor", device_class="temperature")
+                    EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Required(CONF_HUMIDITY_SENSOR, default=humidity_sensor): EntitySelector(
-                    EntitySelectorConfig(domain="sensor",  device_class="humidity")
+                    EntitySelectorConfig(domain="sensor")
                 ),
                 vol.Required(CONF_DECIMAL_PLACES, default=decimal_places): NumberSelector(
                     NumberSelectorConfig(

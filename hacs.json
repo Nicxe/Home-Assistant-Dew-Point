@@ -1,5 +1,5 @@
 {
     "name": "Dew Point",
-    "country": ["SE"]
+   "zip_release": true,
+    "filename": "dew_point.zip"
 }
-  

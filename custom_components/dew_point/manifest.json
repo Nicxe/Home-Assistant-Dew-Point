@@ -6,5 +6,5 @@
   "documentation": "https://github.com/Nicxe/home-assistant-dew-point/blob/main/README.md",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/Nicxe/home-assistant-dew-point/issues",
-  "version": "0.2.0"
+  "version": "0.4.0"
 }
