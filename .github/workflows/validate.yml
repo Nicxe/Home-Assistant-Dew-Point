@@ -1,0 +1,22 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    uses: nicxe/.github/.github/workflows/reusable-validate-integration.yml@main
+    with:
+      hacs_category: "integration"
+      run_hassfest: true
+    secrets: inherit
