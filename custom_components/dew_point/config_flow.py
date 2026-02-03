@@ -11,6 +11,9 @@ from homeassistant.helpers.selector import (
     EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from . import DOMAIN
@@ -20,8 +23,15 @@ _LOGGER = logging.getLogger(__name__)
 CONF_TEMPERATURE_SENSOR = "temperature_sensor"
 CONF_HUMIDITY_SENSOR = "humidity_sensor"
 CONF_DECIMAL_PLACES = "decimal_places"
+CONF_OUTPUT_UNIT = "output_unit"
 
 DEFAULT_NAME = "Dew Point"
+DEFAULT_OUTPUT_UNIT = "auto"
+OUTPUT_UNIT_OPTIONS = [
+    {"label": "Auto", "value": "auto"},
+    {"label": "Celsius (°C)", "value": "celsius"},
+    {"label": "Fahrenheit (°F)", "value": "fahrenheit"},
+]
 
 
 class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -43,6 +53,7 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_TEMPERATURE_SENSOR: user_input[CONF_TEMPERATURE_SENSOR],
                     CONF_HUMIDITY_SENSOR: user_input[CONF_HUMIDITY_SENSOR],
                     CONF_DECIMAL_PLACES: decimal_places,
+                    CONF_OUTPUT_UNIT: user_input[CONF_OUTPUT_UNIT],
                 },
             )
 
@@ -62,6 +73,12 @@ class DewpointConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         step=1,  # Only integers
                         mode="box",
                         unit_of_measurement="decimals"
+                    )
+                ),
+                vol.Required(CONF_OUTPUT_UNIT, default=DEFAULT_OUTPUT_UNIT): SelectSelector(
+                    SelectSelectorConfig(
+                        options=OUTPUT_UNIT_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
             }
@@ -92,6 +109,7 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
                     CONF_TEMPERATURE_SENSOR: user_input[CONF_TEMPERATURE_SENSOR],
                     CONF_HUMIDITY_SENSOR: user_input[CONF_HUMIDITY_SENSOR],
                     CONF_DECIMAL_PLACES: decimal_places,
+                    CONF_OUTPUT_UNIT: user_input[CONF_OUTPUT_UNIT],
                 },
             )
 
@@ -107,6 +125,9 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
         )
         decimal_places = options.get(
             CONF_DECIMAL_PLACES, data.get(CONF_DECIMAL_PLACES, 1)
+        )
+        output_unit = options.get(
+            CONF_OUTPUT_UNIT, data.get(CONF_OUTPUT_UNIT, DEFAULT_OUTPUT_UNIT)
         )
 
         schema = vol.Schema(
@@ -124,6 +145,12 @@ class DewpointOptionsFlowHandler(OptionsFlowWithConfigEntry):
                         step=1,
                         mode="box",
                         unit_of_measurement="decimals"
+                    )
+                ),
+                vol.Required(CONF_OUTPUT_UNIT, default=output_unit): SelectSelector(
+                    SelectSelectorConfig(
+                        options=OUTPUT_UNIT_OPTIONS,
+                        mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
             }
