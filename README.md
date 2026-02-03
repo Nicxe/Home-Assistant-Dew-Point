@@ -71,6 +71,11 @@ To add the integration to your Home Assistant instance, use the button below:
 > [!TIP]
 > You can easily set up multiple dew point sensors for different locations by clicking Add Entry on the Dew Point integration page in Home Assistant. No YAML configuration is required, and each sensor can have its own unique setup.
 
+### Output units
+
+By default, the integration automatically matches the dew point output unit to the temperature sensor input (°C or °F).
+You can override this in the config UI by selecting an explicit output unit.
+
 
 
 ### Manual Configuration
