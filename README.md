@@ -2,10 +2,7 @@
 
 <a href="https://buymeacoffee.com/niklasv" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a>
 
-<img alt="Maintenance" src="https://img.shields.io/maintenance/yes/2025"> <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/Nicxe/home-assistant-dew-point"><br><br>
 
-
-## Overview
 
 This integration calculates the **dew point temperature** based on data from a temperature sensor and a humidity sensor. The dew point is a key measure of thermal comfort and indicates the temperature at which air becomes saturated with moisture.
 
@@ -70,6 +67,11 @@ To add the integration to your Home Assistant instance, use the button below:
 
 > [!TIP]
 > You can easily set up multiple dew point sensors for different locations by clicking Add Entry on the Dew Point integration page in Home Assistant. No YAML configuration is required, and each sensor can have its own unique setup.
+
+### Output units
+
+By default, the integration automatically matches the dew point output unit to the temperature sensor input (°C or °F).
+You can override this in the config UI by selecting an explicit output unit.
 
 
 
