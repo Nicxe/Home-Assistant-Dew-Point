@@ -22,6 +22,11 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 
 from . import DOMAIN
 
+CONF_OUTPUT_UNIT = "output_unit"
+OUTPUT_UNIT_AUTO = "auto"
+OUTPUT_UNIT_CELSIUS = "celsius"
+OUTPUT_UNIT_FAHRENHEIT = "fahrenheit"
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -42,6 +47,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         "decimal_places", entry.data.get("decimal_places", 1)
     )
     decimal_places = int(decimal_places)  # ensure integer
+    output_unit = entry.options.get(
+        CONF_OUTPUT_UNIT, entry.data.get(CONF_OUTPUT_UNIT, OUTPUT_UNIT_AUTO)
+    )
 
     async_add_entities(
         [
@@ -51,7 +59,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                 name,
                 temperature_sensor,
                 humidity_sensor,
-                decimal_places
+                decimal_places,
+                output_unit,
             )
         ],
         update_before_add=True  # Run an update immediately
@@ -83,7 +92,16 @@ class DewPointSensor(SensorEntity):
     _attr_icon = "mdi:water-thermometer-outline"
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
 
-    def __init__(self, hass, entry_id, name, entity_dry_temp, entity_rel_hum, decimal_places: int):
+    def __init__(
+        self,
+        hass,
+        entry_id,
+        name,
+        entity_dry_temp,
+        entity_rel_hum,
+        decimal_places: int,
+        output_unit: str,
+    ):
         """Initialize the sensor."""
         self.hass = hass
         self._attr_name = name
@@ -92,11 +110,14 @@ class DewPointSensor(SensorEntity):
         self._entity_dry_temp = entity_dry_temp
         self._entity_rel_hum = entity_rel_hum
         self._decimal_places = decimal_places
+        self._output_unit = output_unit
 
         self._unsub_listener = None
         self._startup_handle = None
 
-        self._dry_temp_value = None  # °C
+        self._dry_temp_value_c = None  # °C
+        self._dry_temp_value = None  # original units
+        self._dry_temp_unit = None
         self._rel_hum_value = None   # 0–1
 
         self._attr_native_value = None
@@ -140,26 +161,41 @@ class DewPointSensor(SensorEntity):
         """Show current temp/humidity and number of decimals as attributes."""
         return {
             "temperature": self._dry_temp_value,
+            "temperature_unit": self._dry_temp_unit,
             "humidity": (
                 round(self._rel_hum_value * 100, 1) 
                 if self._rel_hum_value is not None 
                 else None
             ),
-            "decimal_places": self._decimal_places
+            "decimal_places": self._decimal_places,
+            "output_unit": self._attr_native_unit_of_measurement,
         }
 
     async def async_update(self):
         """Fetch values and calculate the dew point."""
-        dry_temp = self._get_dry_temp(self._entity_dry_temp)
+        dry_temp_c, dry_temp_native, dry_temp_unit = self._get_dry_temp(
+            self._entity_dry_temp
+        )
         rel_hum = self._get_rel_hum(self._entity_rel_hum)
 
-        self._dry_temp_value = dry_temp
+        self._dry_temp_value_c = dry_temp_c
+        self._dry_temp_value = dry_temp_native
+        self._dry_temp_unit = dry_temp_unit
         self._rel_hum_value = rel_hum
 
-        if dry_temp is not None and rel_hum is not None:
-            dew_point = _calculate_dew_point_arden_buck(dry_temp, rel_hum)
-            if dew_point is not None:
-                self._attr_native_value = round(dew_point, self._decimal_places)
+        if dry_temp_c is not None and rel_hum is not None:
+            dew_point_c = _calculate_dew_point_arden_buck(dry_temp_c, rel_hum)
+            if dew_point_c is not None:
+                output_unit = self._resolve_output_unit(dry_temp_unit)
+                self._attr_native_unit_of_measurement = output_unit
+                self._attr_native_value = round(
+                    TemperatureConverter.convert(
+                        dew_point_c,
+                        UnitOfTemperature.CELSIUS,
+                        output_unit,
+                    ),
+                    self._decimal_places,
+                )
             else:
                 self._attr_native_value = None
         else:
@@ -167,11 +203,11 @@ class DewPointSensor(SensorEntity):
 
     @callback
     def _get_dry_temp(self, entity_id):
-        """Read and convert temperature from sensor in °C."""
+        """Read and convert temperature from sensor in °C plus native value/unit."""
         state = self.hass.states.get(entity_id)
         if not state or state.state in [None, "unknown", "unavailable"]:
             _LOGGER.debug("Temperature sensor %s is unavailable.", entity_id)
-            return None
+            return None, None, None
 
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
         value_str = state.state
@@ -179,20 +215,33 @@ class DewPointSensor(SensorEntity):
 
         if value_float is None:
             _LOGGER.error("Cannot interpret temperature value (%s) from %s.", value_str, entity_id)
-            return None
+            return None, None, None
 
         # If the unit is °F, convert to °C. Otherwise, if already °C, keep.
         if unit in (UnitOfTemperature.FAHRENHEIT, UnitOfTemperature.CELSIUS):
             try:
-                return TemperatureConverter.convert(
-                    value_float, unit, UnitOfTemperature.CELSIUS
+                return (
+                    TemperatureConverter.convert(
+                        value_float, unit, UnitOfTemperature.CELSIUS
+                    ),
+                    value_float,
+                    unit,
                 )
             except ValueError as ex:
                 _LOGGER.error("Error in temperature conversion: %s", ex)
-                return None
+                return None, None, None
 
         _LOGGER.error("Sensor %s has unit measure %s, not supported (only °C/°F).", entity_id, unit)
-        return None
+        return None, None, None
+
+    def _resolve_output_unit(self, input_unit: str | None) -> str:
+        if self._output_unit == OUTPUT_UNIT_CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        if self._output_unit == OUTPUT_UNIT_FAHRENHEIT:
+            return UnitOfTemperature.FAHRENHEIT
+        if input_unit in (UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT):
+            return input_unit
+        return UnitOfTemperature.CELSIUS
 
     @callback
     def _get_rel_hum(self, entity_id):
