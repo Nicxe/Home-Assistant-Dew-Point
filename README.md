@@ -73,7 +73,16 @@ To add the integration to your Home Assistant instance, use the button below:
 By default, the integration automatically matches the dew point output unit to the temperature sensor input (°C or °F).
 You can override this in the config UI by selecting an explicit output unit.
 
+### State attributes
 
+Each dew point sensor exposes the configured source entities as state attributes. These can be useful in dashboards, templates, and history links when you want to refer back to the temperature and humidity sensors used for the calculation.
+
+| Attribute | Description |
+| --- | --- |
+| `temperature_entity_id` | The temperature sensor entity configured for this dew point sensor. |
+| `humidity_entity_id` | The humidity sensor entity configured for this dew point sensor. |
+
+Entity IDs can be changed by users in Home Assistant. If you rename a source entity, update any dashboards, templates, or automations that reference these attributes or the returned entity IDs.
 
 ### Manual Configuration
 
