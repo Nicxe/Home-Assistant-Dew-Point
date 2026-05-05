@@ -162,11 +162,13 @@ class DewPointSensor(SensorEntity):
         return {
             "temperature": self._dry_temp_value,
             "temperature_unit": self._dry_temp_unit,
+            "temperature_entity_id": self._entity_dry_temp,
             "humidity": (
                 round(self._rel_hum_value * 100, 1) 
                 if self._rel_hum_value is not None 
                 else None
             ),
+            "humidity_entity_id": self._entity_rel_hum,
             "decimal_places": self._decimal_places,
             "output_unit": self._attr_native_unit_of_measurement,
         }
