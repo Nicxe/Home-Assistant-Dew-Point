@@ -11,7 +11,7 @@
   },
   "overrides": {
     "tar": ">=7.5.8",
-    "npm": ">=11.10.1",
+    "npm": ">=11.15.0",
     "cross-spawn": "^7.0.6",
     "brace-expansion": "^2.0.2",
     "picomatch": ">=4.0.4"
