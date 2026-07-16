@@ -1,15 +1,245 @@
 {
+  "title": "Dew Point",
   "config": {
+    "abort": {
+      "already_configured": "A Dew Point helper with the same sources is already configured",
+      "reconfigure_successful": "The Dew Point helper was updated"
+    },
+    "error": {
+      "invalid_name": "Enter a name between 1 and 100 characters",
+      "invalid_temperature_sensor": "Select a temperature sensor with a supported unit and a current value from -80 to 50 °C",
+      "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
+      "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
+      "invalid_condensation_threshold": "Enter a condensation threshold from -20 to 20 °C",
+      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C"
+    },
     "step": {
       "user": {
-        "title": "Set up Dew Point"
+        "title": "Create a Dew Point helper",
+        "description": "Calculate dew point and related humidity measurements from temperature and relative humidity. A surface temperature source is optional and enables condensation risk measurements.",
+        "data": {
+          "name": "Name",
+          "temperature_sensor": "Temperature source",
+          "humidity_sensor": "Relative humidity source",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
+        },
+        "data_description": {
+          "name": "A descriptive name for this helper.",
+          "temperature_sensor": "The air temperature sensor used for all calculations.",
+          "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure {name}",
+        "description": "Change the measurement sources and condensation risk settings for this helper.",
+        "data": {
+          "name": "Name",
+          "temperature_sensor": "Temperature source",
+          "humidity_sensor": "Relative humidity source",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
+        },
+        "data_description": {
+          "name": "A descriptive name for this helper.",
+          "temperature_sensor": "The air temperature sensor used for all calculations.",
+          "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
+        }
       }
     }
   },
   "options": {
+    "error": {
+      "invalid_name": "Enter a name between 1 and 100 characters",
+      "invalid_temperature_sensor": "Select a temperature sensor with a supported unit and a current value from -80 to 50 °C",
+      "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
+      "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
+      "invalid_condensation_threshold": "Enter a condensation threshold from -20 to 20 °C",
+      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C"
+    },
     "step": {
       "init": {
-        "title": "Dew Point options"
+        "title": "Configure {name}",
+        "description": "Change the measurement sources and condensation risk settings. Changes take effect immediately after saving.",
+        "data": {
+          "name": "Name",
+          "temperature_sensor": "Temperature source",
+          "humidity_sensor": "Relative humidity source",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
+        },
+        "data_description": {
+          "name": "A descriptive name for this helper.",
+          "temperature_sensor": "The air temperature sensor used for all calculations.",
+          "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
+        }
+      }
+    }
+  },
+  "selector": {
+    "condensation_threshold": {
+      "unit_of_measurement": {
+        "°C": "°C"
+      }
+    },
+    "hysteresis": {
+      "unit_of_measurement": {
+        "°C": "°C"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dew_point": {
+        "name": "{name} dew point"
+      },
+      "dew_point_spread": {
+        "name": "{name} dew point spread"
+      },
+      "absolute_humidity": {
+        "name": "{name} absolute humidity"
+      },
+      "vapor_pressure": {
+        "name": "{name} vapor pressure"
+      },
+      "saturation_vapor_pressure": {
+        "name": "{name} saturation vapor pressure"
+      },
+      "vapor_pressure_deficit": {
+        "name": "{name} vapor pressure deficit"
+      },
+      "frost_point": {
+        "name": "{name} frost point"
+      },
+      "surface_dew_point_margin": {
+        "name": "{name} surface dew point margin"
+      }
+    },
+    "binary_sensor": {
+      "condensation_risk": {
+        "name": "{name} condensation risk"
+      }
+    }
+  },
+  "issues": {
+    "temperature_source_missing": {
+      "title": "{helper_name}: temperature source {entity_id} is missing",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} no longer exists. Select a replacement temperature sensor.",
+            "data": {
+              "replacement_entity": "Replacement temperature source"
+            }
+          }
+        }
+      }
+    },
+    "temperature_source_incompatible": {
+      "title": "{helper_name}: temperature source {entity_id} is incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} is no longer a compatible temperature sensor. Select a replacement.",
+            "data": {
+              "replacement_entity": "Replacement temperature source"
+            }
+          }
+        }
+      }
+    },
+    "humidity_source_missing": {
+      "title": "{helper_name}: relative humidity source {entity_id} is missing",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a relative humidity sensor that reports a percentage"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the relative humidity source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} no longer exists. Select a replacement relative humidity sensor.",
+            "data": {
+              "replacement_entity": "Replacement relative humidity source"
+            }
+          }
+        }
+      }
+    },
+    "humidity_source_incompatible": {
+      "title": "{helper_name}: relative humidity source {entity_id} is incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a relative humidity sensor that reports a percentage"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the relative humidity source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} is no longer a compatible relative humidity sensor. Select a replacement.",
+            "data": {
+              "replacement_entity": "Replacement relative humidity source"
+            }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_missing": {
+      "title": "{helper_name}: surface temperature source {entity_id} is missing",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a surface temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the surface temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} no longer exists. Select a replacement, or remove the surface source from the helper settings.",
+            "data": {
+              "replacement_entity": "Replacement surface temperature source"
+            }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_incompatible": {
+      "title": "{helper_name}: surface temperature source {entity_id} is incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a surface temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the surface temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} is no longer a compatible temperature sensor. Select a replacement, or remove the surface source from the helper settings.",
+            "data": {
+              "replacement_entity": "Replacement surface temperature source"
+            }
+          }
+        }
       }
     }
   }

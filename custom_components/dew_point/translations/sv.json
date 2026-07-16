@@ -1,0 +1,216 @@
+{
+  "title": "Daggpunkt",
+  "config": {
+    "abort": {
+      "already_configured": "En daggpunktshjälpare med samma källor är redan konfigurerad",
+      "reconfigure_successful": "Daggpunktshjälparen har uppdaterats"
+    },
+    "error": {
+      "invalid_name": "Ange ett namn med 1 till 100 tecken",
+      "invalid_temperature_sensor": "Välj en temperatursensor med en enhet som stöds och ett aktuellt värde från -80 till 50 °C",
+      "invalid_humidity_sensor": "Välj en sensor för relativ luftfuktighet som rapporterar ett värde från 0 till 100 %",
+      "invalid_surface_temperature_sensor": "Välj en yttemperatursensor med en temperaturenhet som stöds",
+      "invalid_condensation_threshold": "Ange ett kondenströskelvärde från -20 till 20 °C",
+      "invalid_hysteresis": "Ange ett hysteresvärde från 0 till 20 °C"
+    },
+    "step": {
+      "user": {
+        "title": "Skapa en daggpunktshjälpare",
+        "description": "Beräkna daggpunkt och relaterade luftfuktighetsvärden från temperatur och relativ luftfuktighet. En yttemperaturkälla är valfri och aktiverar mätvärden för kondensrisk.",
+        "data": {
+          "name": "Namn",
+          "temperature_sensor": "Temperaturkälla",
+          "humidity_sensor": "Källa för relativ luftfuktighet",
+          "surface_temperature_sensor": "Yttemperaturkälla (valfri)",
+          "condensation_threshold": "Kondenströskel",
+          "hysteresis": "Kondenshysteres"
+        },
+        "data_description": {
+          "name": "Ett beskrivande namn för den här hjälparen.",
+          "temperature_sensor": "Lufttemperatursensorn som används för alla beräkningar.",
+          "humidity_sensor": "Sensorn för relativ luftfuktighet som används för alla beräkningar.",
+          "surface_temperature_sensor": "Yttemperaturen som ska jämföras med daggpunkten. Lämna tomt om ingen yta övervakas.",
+          "condensation_threshold": "Marginalen mellan yttemperatur och daggpunkt där kondensrisk aktiveras.",
+          "hysteresis": "Den extra marginal som krävs innan kondensrisken stängs av, vilket förhindrar snabba växlingar nära tröskeln."
+        }
+      },
+      "reconfigure": {
+        "title": "Konfigurera om {name}",
+        "description": "Ändra mätkällor och inställningar för kondensrisk för den här hjälparen.",
+        "data": {
+          "name": "[%key:component::dew_point::config::step::user::data::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data::hysteresis%]"
+        },
+        "data_description": {
+          "name": "[%key:component::dew_point::config::step::user::data_description::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data_description::hysteresis%]"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_name": "[%key:component::dew_point::config::error::invalid_name%]",
+      "invalid_temperature_sensor": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]",
+      "invalid_humidity_sensor": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]",
+      "invalid_surface_temperature_sensor": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]",
+      "invalid_condensation_threshold": "[%key:component::dew_point::config::error::invalid_condensation_threshold%]",
+      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]"
+    },
+    "step": {
+      "init": {
+        "title": "Konfigurera {name}",
+        "description": "Ändra mätkällor och inställningar för kondensrisk. Ändringarna börjar gälla direkt när du sparar.",
+        "data": {
+          "name": "[%key:component::dew_point::config::step::user::data::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data::hysteresis%]"
+        },
+        "data_description": {
+          "name": "[%key:component::dew_point::config::step::user::data_description::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data_description::hysteresis%]"
+        }
+      }
+    }
+  },
+  "selector": {
+    "condensation_threshold": {
+      "unit_of_measurement": {
+        "°C": "°C"
+      }
+    },
+    "hysteresis": {
+      "unit_of_measurement": {
+        "°C": "°C"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dew_point": { "name": "{name} daggpunkt" },
+      "dew_point_spread": { "name": "{name} daggpunktsspridning" },
+      "absolute_humidity": { "name": "{name} absolut luftfuktighet" },
+      "vapor_pressure": { "name": "{name} ångtryck" },
+      "saturation_vapor_pressure": { "name": "{name} mättnadsångtryck" },
+      "vapor_pressure_deficit": { "name": "{name} ångtrycksunderskott" },
+      "frost_point": { "name": "{name} frostpunkt" },
+      "surface_dew_point_margin": { "name": "{name} ytans marginal till daggpunkten" }
+    },
+    "binary_sensor": {
+      "condensation_risk": { "name": "{name} kondensrisk" }
+    }
+  },
+  "issues": {
+    "temperature_source_missing": {
+      "title": "{helper_name}: temperaturkällan {entity_id} saknas",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt temperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} finns inte längre. Välj en ny temperatursensor.",
+            "data": { "replacement_entity": "Ny temperaturkälla" }
+          }
+        }
+      }
+    },
+    "temperature_source_incompatible": {
+      "title": "{helper_name}: temperaturkällan {entity_id} är inkompatibel",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt temperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} är inte längre en kompatibel temperatursensor. Välj en ersättare.",
+            "data": { "replacement_entity": "Ny temperaturkälla" }
+          }
+        }
+      }
+    },
+    "humidity_source_missing": {
+      "title": "{helper_name}: källan för relativ luftfuktighet {entity_id} saknas",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt källan för relativ luftfuktighet",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} finns inte längre. Välj en ny sensor för relativ luftfuktighet.",
+            "data": { "replacement_entity": "Ny källa för relativ luftfuktighet" }
+          }
+        }
+      }
+    },
+    "humidity_source_incompatible": {
+      "title": "{helper_name}: källan för relativ luftfuktighet {entity_id} är inkompatibel",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt källan för relativ luftfuktighet",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} är inte längre en kompatibel sensor för relativ luftfuktighet. Välj en ersättare.",
+            "data": { "replacement_entity": "Ny källa för relativ luftfuktighet" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_missing": {
+      "title": "{helper_name}: yttemperaturkällan {entity_id} saknas",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt yttemperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} finns inte längre. Välj en ersättare eller ta bort yttemperaturkällan i hjälparens inställningar.",
+            "data": { "replacement_entity": "Ny yttemperaturkälla" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_incompatible": {
+      "title": "{helper_name}: yttemperaturkällan {entity_id} är inkompatibel",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt yttemperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} är inte längre en kompatibel temperatursensor. Välj en ersättare eller ta bort yttemperaturkällan i hjälparens inställningar.",
+            "data": { "replacement_entity": "Ny yttemperaturkälla" }
+          }
+        }
+      }
+    }
+  }
+}
