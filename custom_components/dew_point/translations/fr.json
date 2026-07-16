@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration Point de Rosée"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Point de Rosée"
+      }
+    }
+  }
+}
