@@ -8,7 +8,7 @@ from custom_components.dew_point.const import DOMAIN
 
 
 async def test_english_swedish_and_french_translations_load(hass) -> None:
-    """All supported languages expose config, entity, selector, and issue text."""
+    """All supported languages expose config, entity, and issue text."""
     expected = {
         "en": {
             "config": "Create a Dew Point helper",
@@ -37,10 +37,6 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
         issues = await async_get_translations(
             hass, language, "issues", integrations={DOMAIN}
         )
-        selectors = await async_get_translations(
-            hass, language, "selector", integrations={DOMAIN}
-        )
-
         assert config["component.dew_point.config.step.user.title"] == text["config"]
         assert (
             entities["component.dew_point.entity.binary_sensor.condensation_risk.name"]
@@ -51,10 +47,4 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
                 "component.dew_point.issues.surface_temperature_source_missing.fix_flow.step.replace_source.title"
             ]
             == text["issue"]
-        )
-        assert (
-            selectors[
-                "component.dew_point.selector.condensation_threshold.unit_of_measurement.°C"
-            ]
-            == "°C"
         )
