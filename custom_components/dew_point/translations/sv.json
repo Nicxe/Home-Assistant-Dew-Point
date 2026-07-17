@@ -88,18 +88,6 @@
       }
     }
   },
-  "selector": {
-    "condensation_threshold": {
-      "unit_of_measurement": {
-        "°C": "°C"
-      }
-    },
-    "hysteresis": {
-      "unit_of_measurement": {
-        "°C": "°C"
-      }
-    }
-  },
   "entity": {
     "sensor": {
       "dew_point": { "name": "{name} daggpunkt" },
