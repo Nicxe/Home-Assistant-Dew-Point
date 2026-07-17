@@ -1,272 +1,261 @@
-"""
-Sensor part for the Dew Point integration.
-Arden Buck equation, dynamic decimals, and support for options flow.
-"""
-import logging
-import math
+"""Sensor entities for the Dew Point integration."""
 
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.config_entries import ConfigEntry
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
 from homeassistant.components.sensor import (
-    SensorEntity,
     SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    ATTR_UNIT_OF_MEASUREMENT,
+    CONCENTRATION_GRAMS_PER_CUBIC_METER,
+    UnitOfPressure,
     UnitOfTemperature,
 )
-from homeassistant.util import slugify, convert
-from homeassistant.util.unit_conversion import TemperatureConverter
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.typing import StateType
 
-from . import DOMAIN
+from .const import (
+    OUTPUT_UNIT_CELSIUS,
+    OUTPUT_UNIT_FAHRENHEIT,
+)
+from .runtime import DewPointRuntime, DewPointRuntimeData
 
-CONF_OUTPUT_UNIT = "output_unit"
-OUTPUT_UNIT_AUTO = "auto"
-OUTPUT_UNIT_CELSIUS = "celsius"
-OUTPUT_UNIT_FAHRENHEIT = "fahrenheit"
+ATTR_TEMPERATURE = "temperature"
+ATTR_TEMPERATURE_UNIT = "temperature_unit"
+ATTR_TEMPERATURE_ENTITY_ID = "temperature_entity_id"
+ATTR_HUMIDITY = "humidity"
+ATTR_HUMIDITY_ENTITY_ID = "humidity_entity_id"
+ATTR_DECIMAL_PLACES = "decimal_places"
+ATTR_OUTPUT_UNIT = "output_unit"
 
-_LOGGER = logging.getLogger(__name__)
+
+@dataclass(frozen=True, kw_only=True)
+class DewPointSensorEntityDescription(SensorEntityDescription):
+    """Describe one derived Dew Point sensor."""
+
+    value_fn: Callable[[DewPointRuntimeData], StateType]
+    requires_surface: bool = False
+    legacy_attributes: bool = False
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    """Create sensor from config entry and its options."""
-    # Prioritize entry.options, fallback to entry.data
-    name = entry.data["name"]
+SENSOR_DESCRIPTIONS: tuple[DewPointSensorEntityDescription, ...] = (
+    DewPointSensorEntityDescription(
+        key="dew_point",
+        translation_key="dew_point",
+        icon="mdi:water-thermometer-outline",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda data: (
+            data.properties.dew_point_c if data.properties is not None else None
+        ),
+        legacy_attributes=True,
+    ),
+    DewPointSensorEntityDescription(
+        key="dew_point_spread",
+        translation_key="dew_point_spread",
+        icon="mdi:thermometer-chevron-down",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE_DELTA,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        value_fn=lambda data: (
+            data.properties.dew_point_spread_c if data.properties is not None else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="absolute_humidity",
+        translation_key="absolute_humidity",
+        icon="mdi:water-percent",
+        native_unit_of_measurement=CONCENTRATION_GRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.ABSOLUTE_HUMIDITY,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
+        value_fn=lambda data: (
+            data.properties.absolute_humidity_g_m3
+            if data.properties is not None
+            else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="vapor_pressure",
+        translation_key="vapor_pressure",
+        icon="mdi:gauge-low",
+        native_unit_of_measurement=UnitOfPressure.KPA,
+        device_class=SensorDeviceClass.PRESSURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=3,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: (
+            data.properties.actual_vapor_pressure_kpa
+            if data.properties is not None
+            else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="saturation_vapor_pressure",
+        translation_key="saturation_vapor_pressure",
+        icon="mdi:gauge-full",
+        native_unit_of_measurement=UnitOfPressure.KPA,
+        device_class=SensorDeviceClass.PRESSURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=3,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: (
+            data.properties.saturation_vapor_pressure_kpa
+            if data.properties is not None
+            else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="vapor_pressure_deficit",
+        translation_key="vapor_pressure_deficit",
+        icon="mdi:leaf",
+        native_unit_of_measurement=UnitOfPressure.KPA,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=3,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: (
+            data.properties.vapor_pressure_deficit_kpa
+            if data.properties is not None
+            else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="frost_point",
+        translation_key="frost_point",
+        icon="mdi:snowflake-thermometer",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: (
+            data.properties.frost_point_c if data.properties is not None else None
+        ),
+    ),
+    DewPointSensorEntityDescription(
+        key="surface_dew_point_margin",
+        translation_key="surface_dew_point_margin",
+        icon="mdi:home-thermometer-outline",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE_DELTA,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
+        requires_surface=True,
+        value_fn=lambda data: data.surface_dew_point_margin_c,
+    ),
+)
 
-    temperature_sensor = entry.options.get(
-        "temperature_sensor", entry.data["temperature_sensor"]
-    )
-    humidity_sensor = entry.options.get(
-        "humidity_sensor", entry.data["humidity_sensor"]
-    )
 
-    # decimal_places = options, otherwise data, otherwise 1
-    decimal_places = entry.options.get(
-        "decimal_places", entry.data.get("decimal_places", 1)
-    )
-    decimal_places = int(decimal_places)  # ensure integer
-    output_unit = entry.options.get(
-        CONF_OUTPUT_UNIT, entry.data.get(CONF_OUTPUT_UNIT, OUTPUT_UNIT_AUTO)
-    )
-
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up all calculated sensor entities for a config entry."""
+    runtime: DewPointRuntime = entry.runtime_data
     async_add_entities(
-        [
-            DewPointSensor(
-                hass,
-                entry.entry_id,
-                name,
-                temperature_sensor,
-                humidity_sensor,
-                decimal_places,
-                output_unit,
-            )
-        ],
-        update_before_add=True  # Run an update immediately
+        DewPointSensor(runtime, entry.entry_id, description)
+        for description in SENSOR_DESCRIPTIONS
+        if not description.requires_surface
+        or runtime.surface_temperature_entity_id is not None
     )
-
-
-def _calculate_dew_point_arden_buck(temp_c: float, rel_hum: float) -> float | None:
-    """Calculate dew point (°C) according to Arden Buck's equation."""
-    es = 0.61121 * math.exp(
-        (18.678 - (temp_c / 234.5)) * (temp_c / (257.14 + temp_c))
-    )
-    e = rel_hum * es
-    if e <= 0:
-        return None
-
-    alpha = math.log(e / 0.61121)
-    denominator = 18.678 - alpha
-    if abs(denominator) < 1e-10:
-        return None
-
-    return (257.14 * alpha) / denominator
 
 
 class DewPointSensor(SensorEntity):
-    """Sensor for dew point with Arden Buck's equation, dynamic number of decimals, and options flow."""
+    """Represent one value from the shared Dew Point runtime."""
 
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_device_class = SensorDeviceClass.TEMPERATURE
-    _attr_icon = "mdi:water-thermometer-outline"
-    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _unrecorded_attributes = frozenset(
+        {
+            ATTR_TEMPERATURE,
+            ATTR_TEMPERATURE_UNIT,
+            ATTR_HUMIDITY,
+            ATTR_DECIMAL_PLACES,
+            ATTR_OUTPUT_UNIT,
+        }
+    )
+
+    entity_description: DewPointSensorEntityDescription
 
     def __init__(
         self,
-        hass,
-        entry_id,
-        name,
-        entity_dry_temp,
-        entity_rel_hum,
-        decimal_places: int,
-        output_unit: str,
-    ):
-        """Initialize the sensor."""
-        self.hass = hass
-        self._attr_name = name
-        self._attr_unique_id = f"{entry_id}_dewpoint_{slugify(name)}"
-
-        self._entity_dry_temp = entity_dry_temp
-        self._entity_rel_hum = entity_rel_hum
-        self._decimal_places = decimal_places
-        self._output_unit = output_unit
-
-        self._unsub_listener = None
-        self._startup_handle = None
-
-        self._dry_temp_value_c = None  # °C
-        self._dry_temp_value = None  # original units
-        self._dry_temp_unit = None
-        self._rel_hum_value = None   # 0–1
-
-        self._attr_native_value = None
-
-        # Delay to give sensors time to become available
-        self.delay_seconds = 10
-
-    async def async_added_to_hass(self):
-        """When the sensor is added to HA."""
-        @callback
-        def sensor_state_listener(event):
-            """Listen to state_changed event and update the dew point."""
-            self.async_schedule_update_ha_state(True)
-
-        @callback
-        def sensor_startup(_event):
-            """Set up event listeners and wait a while before the first update."""
-            self._unsub_listener = async_track_state_change_event(
-                self.hass,
-                [self._entity_dry_temp, self._entity_rel_hum],
-                sensor_state_listener,
-            )
-            self._startup_handle = self.hass.loop.call_later(
-                self.delay_seconds,
-                lambda: self.async_schedule_update_ha_state(True),
-            )
-
-        self.hass.bus.async_listen_once("homeassistant_started", sensor_startup)
-
-    async def async_will_remove_from_hass(self) -> None:
-        """Clean up listeners when entity is removed."""
-        if self._unsub_listener is not None:
-            self._unsub_listener()
-            self._unsub_listener = None
-        if self._startup_handle is not None:
-            self._startup_handle.cancel()
-            self._startup_handle = None
+        runtime: DewPointRuntime,
+        entry_id: str,
+        description: DewPointSensorEntityDescription,
+    ) -> None:
+        """Initialize a calculated sensor."""
+        self.runtime = runtime
+        self.entity_description = description
+        self._attr_unique_id = f"{entry_id}_{description.key}"
+        self._attr_translation_placeholders = {"name": runtime.name}
 
     @property
-    def extra_state_attributes(self):
-        """Show current temp/humidity and number of decimals as attributes."""
-        return {
-            "temperature": self._dry_temp_value,
-            "temperature_unit": self._dry_temp_unit,
-            "temperature_entity_id": self._entity_dry_temp,
-            "humidity": (
-                round(self._rel_hum_value * 100, 1) 
-                if self._rel_hum_value is not None 
-                else None
-            ),
-            "humidity_entity_id": self._entity_rel_hum,
-            "decimal_places": self._decimal_places,
-            "output_unit": self._attr_native_unit_of_measurement,
+    def available(self) -> bool:
+        """Return whether required source data is available."""
+        if self.entity_description.requires_surface:
+            return self.runtime.data.surface_available
+        return self.runtime.data.available
+
+    @property
+    def native_value(self) -> StateType:
+        """Return the calculated native value from memory."""
+        return self.entity_description.value_fn(self.runtime.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, StateType] | None:
+        """Preserve legacy attributes without recording changing source values."""
+        if not self.entity_description.legacy_attributes:
+            return None
+        data = self.runtime.data
+        attributes: dict[str, StateType] = {
+            ATTR_TEMPERATURE_ENTITY_ID: self.runtime.temperature_entity_id,
+            ATTR_HUMIDITY_ENTITY_ID: self.runtime.humidity_entity_id,
         }
+        if self.runtime.legacy_compatibility:
+            attributes.update(
+                {
+                    ATTR_TEMPERATURE: data.temperature_native_value,
+                    ATTR_TEMPERATURE_UNIT: data.temperature_native_unit,
+                    ATTR_HUMIDITY: data.humidity_percent,
+                    ATTR_DECIMAL_PLACES: self.runtime.legacy_decimal_places,
+                    ATTR_OUTPUT_UNIT: self._legacy_output_unit,
+                }
+            )
+        return attributes
 
-    async def async_update(self):
-        """Fetch values and calculate the dew point."""
-        dry_temp_c, dry_temp_native, dry_temp_unit = self._get_dry_temp(
-            self._entity_dry_temp
-        )
-        rel_hum = self._get_rel_hum(self._entity_rel_hum)
-
-        self._dry_temp_value_c = dry_temp_c
-        self._dry_temp_value = dry_temp_native
-        self._dry_temp_unit = dry_temp_unit
-        self._rel_hum_value = rel_hum
-
-        if dry_temp_c is not None and rel_hum is not None:
-            dew_point_c = _calculate_dew_point_arden_buck(dry_temp_c, rel_hum)
-            if dew_point_c is not None:
-                output_unit = self._resolve_output_unit(dry_temp_unit)
-                self._attr_native_unit_of_measurement = output_unit
-                self._attr_native_value = round(
-                    TemperatureConverter.convert(
-                        dew_point_c,
-                        UnitOfTemperature.CELSIUS,
-                        output_unit,
-                    ),
-                    self._decimal_places,
-                )
-            else:
-                self._attr_native_value = None
-        else:
-            self._attr_native_value = None
-
-    @callback
-    def _get_dry_temp(self, entity_id):
-        """Read and convert temperature from sensor in °C plus native value/unit."""
-        state = self.hass.states.get(entity_id)
-        if not state or state.state in [None, "unknown", "unavailable"]:
-            _LOGGER.debug("Temperature sensor %s is unavailable.", entity_id)
-            return None, None, None
-
-        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-        value_str = state.state
-        value_float = convert(value_str, float)
-
-        if value_float is None:
-            _LOGGER.error("Cannot interpret temperature value (%s) from %s.", value_str, entity_id)
-            return None, None, None
-
-        # If the unit is °F, convert to °C. Otherwise, if already °C, keep.
-        if unit in (UnitOfTemperature.FAHRENHEIT, UnitOfTemperature.CELSIUS):
-            try:
-                return (
-                    TemperatureConverter.convert(
-                        value_float, unit, UnitOfTemperature.CELSIUS
-                    ),
-                    value_float,
-                    unit,
-                )
-            except ValueError as ex:
-                _LOGGER.error("Error in temperature conversion: %s", ex)
-                return None, None, None
-
-        _LOGGER.error("Sensor %s has unit measure %s, not supported (only °C/°F).", entity_id, unit)
-        return None, None, None
-
-    def _resolve_output_unit(self, input_unit: str | None) -> str:
-        if self._output_unit == OUTPUT_UNIT_CELSIUS:
-            return UnitOfTemperature.CELSIUS
-        if self._output_unit == OUTPUT_UNIT_FAHRENHEIT:
+    @property
+    def _legacy_output_unit(self) -> str:
+        """Resolve the unit shown by the deprecated legacy attribute."""
+        if self.runtime.legacy_output_unit == OUTPUT_UNIT_FAHRENHEIT:
             return UnitOfTemperature.FAHRENHEIT
-        if input_unit in (UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT):
-            return input_unit
+        if self.runtime.legacy_output_unit == OUTPUT_UNIT_CELSIUS:
+            return UnitOfTemperature.CELSIUS
+        if self.runtime.data.temperature_native_unit in (
+            UnitOfTemperature.CELSIUS,
+            UnitOfTemperature.FAHRENHEIT,
+        ):
+            return self.runtime.data.temperature_native_unit
         return UnitOfTemperature.CELSIUS
 
+    async def async_added_to_hass(self) -> None:
+        """Subscribe to the shared runtime after entity registration."""
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.runtime.async_add_listener(self._async_runtime_updated)
+        )
+
     @callback
-    def _get_rel_hum(self, entity_id):
-        """Read and convert relative humidity (0–1) from sensor."""
-        state = self.hass.states.get(entity_id)
-        if not state or state.state in [None, "unknown", "unavailable"]:
-            _LOGGER.debug("Humidity sensor %s is unavailable.", entity_id)
-            return None
-
-        value_str = state.state
-        value_float = convert(value_str, float)
-        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-
-        if value_float is None:
-            _LOGGER.error("Cannot interpret humidity value (%s) from %s.", value_str, entity_id)
-            return None
-
-        if unit != "%":
-            _LOGGER.error("Sensor %s has unit measure %s, not supported (only %%).", entity_id, unit)
-            return None
-
-        if not (0 <= value_float <= 100):
-            _LOGGER.error("Humidity sensor %s reports value outside 0–100%%: %s", entity_id, value_float)
-            return None
-
-        return value_float / 100.0
+    def _async_runtime_updated(self) -> None:
+        """Write the latest in-memory value to Home Assistant."""
+        self.async_write_ha_state()

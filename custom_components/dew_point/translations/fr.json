@@ -1,15 +1,319 @@
 {
+  "title": "Point de rosée",
   "config": {
+    "abort": {
+      "already_configured": "Un assistant Point de rosée utilisant les mêmes sources est déjà configuré",
+      "reconfigure_successful": "L’assistant Point de rosée a été mis à jour"
+    },
+    "error": {
+      "invalid_name": "Saisissez un nom comportant entre 1 et 100 caractères",
+      "invalid_source_type": "Choisissez comment lire la température et l’humidité",
+      "invalid_weather_entity": "Sélectionnez une entité météo avec des attributs de température et d’humidité valides",
+      "invalid_temperature_sensor": "Sélectionnez un capteur de température avec une unité prise en charge et une valeur actuelle comprise entre -80 et 50 °C",
+      "invalid_humidity_sensor": "Sélectionnez un capteur d’humidité relative qui indique une valeur comprise entre 0 et 100 %",
+      "invalid_surface_temperature_sensor": "Sélectionnez un capteur de température de surface utilisant une unité prise en charge",
+      "invalid_condensation_threshold": "Saisissez un seuil de condensation compris entre -20 et 20 °C",
+      "invalid_hysteresis": "Saisissez une valeur d’hystérésis comprise entre 0 et 20 °C"
+    },
     "step": {
       "user": {
-        "title": "Configuration Point de Rosée"
+        "title": "Créer un assistant Point de rosée",
+        "description": "Choisissez entre des capteurs séparés ou les attributs de température et d’humidité d’une entité météo.",
+        "data": {
+          "name": "Nom",
+          "source_type": "Source de température et d’humidité",
+          "temperature_sensor": "Source de température",
+          "humidity_sensor": "Source d’humidité relative",
+          "surface_temperature_sensor": "Source de température de surface (facultative)",
+          "condensation_threshold": "Seuil de condensation",
+          "hysteresis": "Hystérésis de condensation"
+        },
+        "data_description": {
+          "name": "Un nom descriptif pour cet assistant.",
+          "source_type": "Utilisez deux capteurs ou lisez les deux mesures depuis une entité météo.",
+          "temperature_sensor": "Le capteur de température de l’air utilisé pour tous les calculs.",
+          "humidity_sensor": "Le capteur d’humidité relative utilisé pour tous les calculs.",
+          "surface_temperature_sensor": "La température de surface à comparer au point de rosée. Laissez ce champ vide si aucune surface n’est surveillée.",
+          "condensation_threshold": "La marge entre la température de surface et le point de rosée à partir de laquelle le risque de condensation est activé.",
+          "hysteresis": "La marge supplémentaire requise pour désactiver le risque de condensation et éviter les changements rapides près du seuil."
+        }
+      },
+      "sensors": {
+        "title": "Sélectionner les capteurs sources",
+        "description": "Sélectionnez des capteurs séparés pour la température de l’air et l’humidité relative. Une source de température de surface facultative active les mesures de risque de condensation.",
+        "data": {
+          "temperature_sensor": "Source de température",
+          "humidity_sensor": "Source d’humidité relative",
+          "surface_temperature_sensor": "Source de température de surface (facultative)",
+          "condensation_threshold": "Seuil de condensation",
+          "hysteresis": "Hystérésis de condensation"
+        },
+        "data_description": {
+          "temperature_sensor": "Le capteur de température de l’air utilisé pour tous les calculs.",
+          "humidity_sensor": "Le capteur d’humidité relative utilisé pour tous les calculs.",
+          "surface_temperature_sensor": "La température de surface à comparer au point de rosée. Laissez ce champ vide si aucune surface n’est surveillée.",
+          "condensation_threshold": "La marge entre la température de surface et le point de rosée à partir de laquelle le risque de condensation est activé.",
+          "hysteresis": "La marge supplémentaire requise pour désactiver le risque de condensation et éviter les changements rapides près du seuil."
+        }
+      },
+      "weather": {
+        "title": "Sélectionner une source météo",
+        "description": "Utilisez les attributs actuels de température et d’humidité d’une entité météo. Une source de température de surface facultative active les mesures de risque de condensation.",
+        "data": {
+          "weather_entity": "Entité météo",
+          "surface_temperature_sensor": "Source de température de surface (facultative)",
+          "condensation_threshold": "Seuil de condensation",
+          "hysteresis": "Hystérésis de condensation"
+        },
+        "data_description": {
+          "weather_entity": "L’entité météo dont les attributs actuels de température et d’humidité sont utilisés pour tous les calculs.",
+          "surface_temperature_sensor": "La température de surface à comparer au point de rosée. Laissez ce champ vide si aucune surface n’est surveillée.",
+          "condensation_threshold": "La marge entre la température de surface et le point de rosée à partir de laquelle le risque de condensation est activé.",
+          "hysteresis": "La marge supplémentaire requise pour désactiver le risque de condensation et éviter les changements rapides près du seuil."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer {name}",
+        "description": "Modifiez les sources de mesure et les paramètres de risque de condensation de cet assistant.",
+        "data": {
+          "name": "[%key:component::dew_point::config::step::user::data::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data::hysteresis%]"
+        },
+        "data_description": {
+          "name": "[%key:component::dew_point::config::step::user::data_description::name%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data_description::hysteresis%]"
+        }
       }
     }
   },
   "options": {
+    "error": {
+      "invalid_name": "[%key:component::dew_point::config::error::invalid_name%]",
+      "invalid_source_type": "[%key:component::dew_point::config::error::invalid_source_type%]",
+      "invalid_weather_entity": "[%key:component::dew_point::config::error::invalid_weather_entity%]",
+      "invalid_temperature_sensor": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]",
+      "invalid_humidity_sensor": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]",
+      "invalid_surface_temperature_sensor": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]",
+      "invalid_condensation_threshold": "[%key:component::dew_point::config::error::invalid_condensation_threshold%]",
+      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]"
+    },
     "step": {
       "init": {
-        "title": "Options Point de Rosée"
+        "title": "Configurer {name}",
+        "description": "Choisissez entre des capteurs séparés ou les attributs de température et d’humidité d’une entité météo.",
+        "data": {
+          "name": "[%key:component::dew_point::config::step::user::data::name%]",
+          "source_type": "[%key:component::dew_point::config::step::user::data::source_type%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data::hysteresis%]"
+        },
+        "data_description": {
+          "name": "[%key:component::dew_point::config::step::user::data_description::name%]",
+          "source_type": "[%key:component::dew_point::config::step::user::data_description::source_type%]",
+          "temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::user::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::user::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::user::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::user::data_description::hysteresis%]"
+        }
+      },
+      "sensors": {
+        "title": "[%key:component::dew_point::config::step::sensors::title%]",
+        "description": "Sélectionnez des capteurs séparés pour la température de l’air et l’humidité relative. Les modifications s’appliquent dès l’enregistrement.",
+        "data": {
+          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::sensors::data::hysteresis%]"
+        },
+        "data_description": {
+          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::sensors::data_description::hysteresis%]"
+        }
+      },
+      "weather": {
+        "title": "[%key:component::dew_point::config::step::weather::title%]",
+        "description": "Utilisez les attributs actuels de température et d’humidité d’une entité météo. Les modifications s’appliquent dès l’enregistrement.",
+        "data": {
+          "weather_entity": "[%key:component::dew_point::config::step::weather::data::weather_entity%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::weather::data::hysteresis%]"
+        },
+        "data_description": {
+          "weather_entity": "[%key:component::dew_point::config::step::weather::data_description::weather_entity%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::weather::data_description::hysteresis%]"
+        }
+      }
+    }
+  },
+  "selector": {
+    "source_type": {
+      "options": {
+        "sensors": "Capteurs de température et d’humidité séparés",
+        "weather": "Attributs d’une entité météo"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dew_point": { "name": "{name} point de rosée" },
+      "dew_point_spread": { "name": "{name} écart au point de rosée" },
+      "absolute_humidity": { "name": "{name} humidité absolue" },
+      "vapor_pressure": { "name": "{name} pression de vapeur" },
+      "saturation_vapor_pressure": { "name": "{name} pression de vapeur saturante" },
+      "vapor_pressure_deficit": { "name": "{name} déficit de pression de vapeur" },
+      "frost_point": { "name": "{name} point de givre" },
+      "surface_dew_point_margin": { "name": "{name} marge de la surface au point de rosée" }
+    },
+    "binary_sensor": {
+      "condensation_risk": { "name": "{name} risque de condensation" }
+    }
+  },
+  "issues": {
+    "weather_source_missing": {
+      "title": "{helper_name} : la source météo {entity_id} est introuvable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_weather_entity%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source météo",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’existe plus. Sélectionnez une entité météo de remplacement.",
+            "data": { "replacement_entity": "Nouvelle source météo" }
+          }
+        }
+      }
+    },
+    "weather_source_incompatible": {
+      "title": "{helper_name} : la source météo {entity_id} est incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_weather_entity%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source météo",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} ne fournit plus d’attributs de température et d’humidité compatibles. Sélectionnez un remplacement.",
+            "data": { "replacement_entity": "Nouvelle source météo" }
+          }
+        }
+      }
+    },
+    "temperature_source_missing": {
+      "title": "{helper_name} : la source de température {entity_id} est introuvable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’existe plus. Sélectionnez un capteur de température de remplacement.",
+            "data": { "replacement_entity": "Nouvelle source de température" }
+          }
+        }
+      }
+    },
+    "temperature_source_incompatible": {
+      "title": "{helper_name} : la source de température {entity_id} est incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’est plus un capteur de température compatible. Sélectionnez un remplacement.",
+            "data": { "replacement_entity": "Nouvelle source de température" }
+          }
+        }
+      }
+    },
+    "humidity_source_missing": {
+      "title": "{helper_name} : la source d’humidité relative {entity_id} est introuvable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source d’humidité relative",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’existe plus. Sélectionnez un capteur d’humidité relative de remplacement.",
+            "data": { "replacement_entity": "Nouvelle source d’humidité relative" }
+          }
+        }
+      }
+    },
+    "humidity_source_incompatible": {
+      "title": "{helper_name} : la source d’humidité relative {entity_id} est incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source d’humidité relative",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’est plus un capteur d’humidité relative compatible. Sélectionnez un remplacement.",
+            "data": { "replacement_entity": "Nouvelle source d’humidité relative" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_missing": {
+      "title": "{helper_name} : la source de température de surface {entity_id} est introuvable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température de surface",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’existe plus. Sélectionnez un remplacement ou supprimez la source de surface dans les paramètres de l’assistant.",
+            "data": { "replacement_entity": "Nouvelle source de température de surface" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_incompatible": {
+      "title": "{helper_name} : la source de température de surface {entity_id} est incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température de surface",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} n’est plus un capteur de température compatible. Sélectionnez un remplacement ou supprimez la source de surface dans les paramètres de l’assistant.",
+            "data": { "replacement_entity": "Nouvelle source de température de surface" }
+          }
+        }
       }
     }
   }
