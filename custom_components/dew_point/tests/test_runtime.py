@@ -6,6 +6,11 @@ import logging
 from unittest.mock import Mock, call, patch
 
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_UNIT_OF_MEASUREMENT,
@@ -24,9 +29,12 @@ from custom_components.dew_point.const import (
     CONF_CONDENSATION_THRESHOLD,
     CONF_HUMIDITY_SENSOR,
     CONF_HYSTERESIS,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DOMAIN,
+    SOURCE_TYPE_WEATHER,
 )
 from custom_components.dew_point.repairs import SourceIssueType
 from custom_components.dew_point.runtime import DewPointRuntime, SourceStatus
@@ -114,6 +122,102 @@ async def test_runtime_calculates_once_and_tracks_sources(
         _set_humidity(hass, 65)
         await hass.async_block_till_done()
         assert listener.call_count == 2
+
+
+async def test_runtime_calculates_from_weather_attributes(
+    hass: HomeAssistant,
+) -> None:
+    """One weather entity supplies both measurements and triggers updates."""
+    hass.states.async_set(
+        "weather.home",
+        "sunny",
+        {
+            ATTR_WEATHER_TEMPERATURE: 68,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.FAHRENHEIT,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Home",
+        options={
+            CONF_NAME: "Home",
+            CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER,
+            CONF_WEATHER_ENTITY: "weather.home",
+        },
+    )
+    entry.add_to_hass(hass)
+    listener = Mock()
+
+    with patch("custom_components.dew_point.runtime.async_update_source_issue"):
+        runtime = DewPointRuntime(hass, entry)
+        runtime.async_add_listener(listener)
+        runtime.async_start()
+
+        assert runtime.source_entity_ids == ("weather.home",)
+        assert runtime.temperature_entity_id == "weather.home"
+        assert runtime.humidity_entity_id == "weather.home"
+        assert runtime.data.available is True
+        assert runtime.data.properties is not None
+        assert runtime.data.properties.dew_point_c == pytest.approx(9.27, abs=0.02)
+
+        hass.states.async_set(
+            "weather.home",
+            "cloudy",
+            {
+                ATTR_WEATHER_TEMPERATURE: 68,
+                ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.FAHRENHEIT,
+                ATTR_WEATHER_HUMIDITY: 60,
+            },
+        )
+        await hass.async_block_till_done()
+
+        assert listener.call_count == 2
+        assert runtime.data.properties is not None
+        assert runtime.data.properties.dew_point_c > 11
+
+
+async def test_runtime_marks_invalid_weather_attributes_incompatible(
+    hass: HomeAssistant,
+) -> None:
+    """Missing weather measurements create one actionable weather-source issue."""
+    hass.states.async_set(
+        "weather.home",
+        "sunny",
+        {
+            ATTR_WEATHER_TEMPERATURE: 20,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+        },
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Home",
+        options={
+            CONF_NAME: "Home",
+            CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER,
+            CONF_WEATHER_ENTITY: "weather.home",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.dew_point.runtime.async_update_source_issue"
+    ) as update_issue:
+        runtime = DewPointRuntime(hass, entry)
+        runtime.async_refresh()
+
+    assert runtime.data.available is False
+    assert runtime.source_statuses[CONF_WEATHER_ENTITY] is SourceStatus.INCOMPATIBLE
+    assert (
+        call(
+            hass,
+            entry,
+            CONF_WEATHER_ENTITY,
+            SourceIssueType.INCOMPATIBLE,
+            entity_id="weather.home",
+        )
+        in update_issue.call_args_list
+    )
 
 
 async def test_runtime_hysteresis(hass: HomeAssistant) -> None:

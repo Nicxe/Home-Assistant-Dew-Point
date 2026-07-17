@@ -5,6 +5,11 @@ from __future__ import annotations
 from unittest.mock import AsyncMock
 
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from pytest import raises
@@ -181,4 +186,47 @@ async def test_repair_flow_accepts_registered_unavailable_replacement(hass) -> N
 
     assert result["type"] == "create_entry"
     assert entry.options[repairs.CONF_TEMPERATURE_SENSOR] == replacement_entity_id
+    hass.config_entries.async_reload.assert_awaited_once_with(entry.entry_id)
+
+
+async def test_repair_flow_replaces_weather_source(hass) -> None:
+    """A compatible weather entity can replace an invalid weather source."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Home",
+        options={repairs.CONF_WEATHER_ENTITY: "weather.old"},
+    )
+    entry.add_to_hass(hass)
+    hass.states.async_set(
+        "weather.new",
+        "sunny",
+        {
+            ATTR_WEATHER_TEMPERATURE: 20,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    )
+    issue_id = repairs.source_issue_id(
+        entry.entry_id,
+        repairs.CONF_WEATHER_ENTITY,
+        repairs.SourceIssueType.INCOMPATIBLE,
+    )
+    hass.config_entries.async_reload = AsyncMock(return_value=True)
+    flow = await repairs.async_create_fix_flow(
+        hass,
+        issue_id,
+        {
+            "entry_id": entry.entry_id,
+            "source_key": repairs.CONF_WEATHER_ENTITY,
+            "issue_type": repairs.SourceIssueType.INCOMPATIBLE.value,
+        },
+    )
+    flow.hass = hass
+
+    result = await flow.async_step_replace_source(
+        {repairs.CONF_REPLACEMENT_ENTITY: "weather.new"}
+    )
+
+    assert result["type"] == "create_entry"
+    assert entry.options[repairs.CONF_WEATHER_ENTITY] == "weather.new"
     hass.config_entries.async_reload.assert_awaited_once_with(entry.entry_id)

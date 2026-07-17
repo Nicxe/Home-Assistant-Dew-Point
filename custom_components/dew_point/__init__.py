@@ -23,8 +23,10 @@ from .const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HYSTERESIS,
     CONF_OUTPUT_UNIT,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     CONFIG_ENTRY_MINOR_VERSION,
     CONFIG_ENTRY_VERSION,
     DEFAULT_CONDENSATION_THRESHOLD,
@@ -37,6 +39,7 @@ from .const import (
     OUTPUT_UNIT_CELSIUS,
     OUTPUT_UNIT_FAHRENHEIT,
     PLATFORMS,
+    SOURCE_TYPE_SENSORS,
 )
 from .repairs import async_clear_source_issues
 from .runtime import DewPointRuntime
@@ -44,6 +47,7 @@ from .runtime import DewPointRuntime
 _LOGGER = logging.getLogger(__name__)
 
 _SOURCE_KEYS = (
+    CONF_WEATHER_ENTITY,
     CONF_TEMPERATURE_SENSOR,
     CONF_HUMIDITY_SENSOR,
     CONF_SURFACE_TEMPERATURE_SENSOR,
@@ -156,6 +160,28 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.minor_version >= CONFIG_ENTRY_MINOR_VERSION:
         return True
 
+    if entry.minor_version == 2:
+        options = dict(entry.options)
+        if not all(
+            isinstance(options.get(key), str) and options[key]
+            for key in (CONF_TEMPERATURE_SENSOR, CONF_HUMIDITY_SENSOR)
+        ):
+            _LOGGER.error("Cannot migrate configuration with missing source entities")
+            return False
+        options[CONF_SOURCE_TYPE] = SOURCE_TYPE_SENSORS
+        hass.config_entries.async_update_entry(
+            entry,
+            options=options,
+            version=CONFIG_ENTRY_VERSION,
+            minor_version=CONFIG_ENTRY_MINOR_VERSION,
+        )
+        _LOGGER.debug(
+            "Migration to configuration version %s.%s successful",
+            entry.version,
+            entry.minor_version,
+        )
+        return True
+
     legacy = {**entry.data, **entry.options}
     if not all(
         isinstance(legacy.get(key), str) and legacy[key]
@@ -175,6 +201,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     new_options: dict[str, Any] = {
         CONF_NAME: str(legacy.get(CONF_NAME) or entry.title or DEFAULT_NAME),
+        CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
         CONF_TEMPERATURE_SENSOR: legacy[CONF_TEMPERATURE_SENSOR],
         CONF_HUMIDITY_SENSOR: legacy[CONF_HUMIDITY_SENSOR],
         CONF_CONDENSATION_THRESHOLD: _finite_float_or_default(

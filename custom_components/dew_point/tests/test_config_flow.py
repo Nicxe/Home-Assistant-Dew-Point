@@ -7,6 +7,11 @@ from unittest.mock import patch
 
 from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_UNIT_OF_MEASUREMENT,
@@ -28,11 +33,15 @@ from custom_components.dew_point.const import (
     CONF_CONDENSATION_THRESHOLD,
     CONF_HUMIDITY_SENSOR,
     CONF_HYSTERESIS,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DEFAULT_CONDENSATION_THRESHOLD,
     DEFAULT_HYSTERESIS,
     DOMAIN,
+    SOURCE_TYPE_SENSORS,
+    SOURCE_TYPE_WEATHER,
 )
 
 
@@ -64,16 +73,40 @@ def _set_sources(hass: HomeAssistant) -> None:
     )
 
 
-def _user_input() -> dict[str, str | float]:
-    """Return valid config flow input."""
+def _sensor_input() -> dict[str, str | float]:
+    """Return valid separate-sensor step input."""
     return {
-        "name": "Basement climate",
         CONF_TEMPERATURE_SENSOR: "sensor.air_temperature",
         CONF_HUMIDITY_SENSOR: "sensor.humidity",
         CONF_SURFACE_TEMPERATURE_SENSOR: "sensor.surface_temperature",
         CONF_CONDENSATION_THRESHOLD: 1.0,
         CONF_HYSTERESIS: 0.5,
     }
+
+
+def _sensor_options() -> dict[str, str | float]:
+    """Return canonical options for a separate-sensor entry."""
+    return {
+        "name": "Basement climate",
+        CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
+        **_sensor_input(),
+    }
+
+
+async def _start_sensor_flow(
+    hass: HomeAssistant, *, name: str = "Basement climate"
+) -> dict[str, object]:
+    """Start a config flow and select separate sensors."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": name, CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == SOURCE_TYPE_SENSORS
+    return result
 
 
 async def test_user_flow_creates_canonical_options(hass: HomeAssistant) -> None:
@@ -87,8 +120,15 @@ async def test_user_flow_creates_canonical_options(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
     schema_keys = {str(key) for key in result["data_schema"].schema}
+    assert schema_keys == {"name", CONF_SOURCE_TYPE}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "Basement climate", CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS},
+    )
+    assert result["step_id"] == SOURCE_TYPE_SENSORS
+    schema_keys = {str(key) for key in result["data_schema"].schema}
     assert schema_keys == {
-        "name",
         CONF_TEMPERATURE_SENSOR,
         CONF_HUMIDITY_SENSOR,
         CONF_SURFACE_TEMPERATURE_SENSOR,
@@ -98,13 +138,133 @@ async def test_user_flow_creates_canonical_options(hass: HomeAssistant) -> None:
 
     with patch("custom_components.dew_point.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], _user_input()
+            result["flow_id"], _sensor_input()
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Basement climate"
     assert result["data"] == {}
-    assert result["options"] == _user_input()
+    assert result["options"] == _sensor_options()
+
+
+async def test_user_flow_creates_weather_options(hass: HomeAssistant) -> None:
+    """The weather flow stores one entity for both atmospheric measurements."""
+    hass.states.async_set(
+        "weather.home",
+        "sunny",
+        {
+            ATTR_WEATHER_TEMPERATURE: 68,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.FAHRENHEIT,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "Home weather", CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER},
+    )
+
+    assert result["step_id"] == SOURCE_TYPE_WEATHER
+    assert {str(key) for key in result["data_schema"].schema} == {
+        CONF_WEATHER_ENTITY,
+        CONF_SURFACE_TEMPERATURE_SENSOR,
+        CONF_CONDENSATION_THRESHOLD,
+        CONF_HYSTERESIS,
+    }
+
+    with patch("custom_components.dew_point.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                CONF_WEATHER_ENTITY: "weather.home",
+                CONF_CONDENSATION_THRESHOLD: 0.0,
+                CONF_HYSTERESIS: 0.5,
+            },
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["options"] == {
+        "name": "Home weather",
+        CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER,
+        CONF_WEATHER_ENTITY: "weather.home",
+        CONF_CONDENSATION_THRESHOLD: 0.0,
+        CONF_HYSTERESIS: 0.5,
+    }
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        {
+            ATTR_WEATHER_TEMPERATURE: 20,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+        },
+        {
+            ATTR_WEATHER_TEMPERATURE: 20,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+            ATTR_WEATHER_HUMIDITY: 101,
+        },
+        {
+            ATTR_WEATHER_TEMPERATURE: "invalid",
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    ],
+)
+async def test_user_flow_rejects_invalid_weather_attributes(
+    hass: HomeAssistant, attributes: dict[str, str | int]
+) -> None:
+    """A weather source must expose compatible current measurement attributes."""
+    hass.states.async_set("weather.home", "sunny", attributes)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "Weather", CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER},
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_WEATHER_ENTITY: "weather.home",
+            CONF_CONDENSATION_THRESHOLD: 0.0,
+            CONF_HYSTERESIS: 0.5,
+        },
+    )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_weather_entity"}
+
+
+async def test_user_flow_accepts_registered_unavailable_weather_entity(
+    hass: HomeAssistant,
+) -> None:
+    """A registry-only weather source can be configured before attributes load."""
+    er.async_get(hass).async_get_or_create(
+        "weather",
+        "test",
+        "home",
+        suggested_object_id="home",
+    )
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": config_entries.SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "Weather", CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER},
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_WEATHER_ENTITY: "weather.home",
+            CONF_CONDENSATION_THRESHOLD: 0.0,
+            CONF_HYSTERESIS: 0.5,
+        },
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
 async def test_user_flow_accepts_compatible_legacy_sources(
@@ -122,13 +282,10 @@ async def test_user_flow_accepts_compatible_legacy_sources(
         {ATTR_UNIT_OF_MEASUREMENT: PERCENTAGE},
     )
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass, name="Legacy")
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {
-            "name": "Legacy",
             CONF_TEMPERATURE_SENSOR: "sensor.legacy_temperature",
             CONF_HUMIDITY_SENSOR: "sensor.legacy_humidity",
             CONF_CONDENSATION_THRESHOLD: DEFAULT_CONDENSATION_THRESHOLD,
@@ -153,10 +310,8 @@ async def test_user_flow_rejects_incompatible_temperature(
         },
     )
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    user_input = _user_input()
+    result = await _start_sensor_flow(hass)
+    user_input = _sensor_input()
     user_input[CONF_TEMPERATURE_SENSOR] = "sensor.power"
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input
@@ -180,11 +335,9 @@ async def test_user_flow_rejects_invalid_humidity_value(
         },
     )
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], _user_input()
+        result["flow_id"], _sensor_input()
     )
 
     assert result["type"] is FlowResultType.FORM
@@ -198,15 +351,12 @@ async def test_user_flow_aborts_exact_duplicate(hass: HomeAssistant) -> None:
         domain=DOMAIN,
         title="Existing",
         data={},
-        options=_user_input(),
+        options=_sensor_options(),
     )
     existing.add_to_hass(hass)
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    duplicate = _user_input()
-    duplicate["name"] = "Another name"
+    result = await _start_sensor_flow(hass, name="Another name")
+    duplicate = _sensor_input()
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], duplicate
     )
@@ -224,13 +374,18 @@ async def test_options_flow_updates_and_schedules_reload(
         domain=DOMAIN,
         title="Basement climate",
         data={},
-        options=_user_input(),
+        options=_sensor_options(),
     )
     entry.add_to_hass(hass)
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"name": "Basement climate", CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS},
+    )
+    assert result["step_id"] == SOURCE_TYPE_SENSORS
 
     updated = {
         CONF_TEMPERATURE_SENSOR: "sensor.air_temperature",
@@ -245,7 +400,11 @@ async def test_options_flow_updates_and_schedules_reload(
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {"name": "Basement climate", **updated}
+    assert entry.options == {
+        "name": "Basement climate",
+        CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
+        **updated,
+    }
     reload_mock.assert_called_once_with(entry.entry_id)
 
 
@@ -258,10 +417,14 @@ async def test_options_flow_can_remove_optional_surface_source(
         domain=DOMAIN,
         title="Basement climate",
         data={},
-        options=_user_input(),
+        options=_sensor_options(),
     )
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"name": "Basement climate", CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS},
+    )
 
     updated = {
         CONF_TEMPERATURE_SENSOR: "sensor.air_temperature",
@@ -277,6 +440,47 @@ async def test_options_flow_can_remove_optional_surface_source(
     assert CONF_SURFACE_TEMPERATURE_SENSOR not in entry.options
 
 
+async def test_options_flow_switches_to_weather_and_removes_sensor_sources(
+    hass: HomeAssistant,
+) -> None:
+    """Changing source type removes fields belonging to the previous mode."""
+    _set_sources(hass)
+    hass.states.async_set(
+        "weather.home",
+        "cloudy",
+        {
+            ATTR_WEATHER_TEMPERATURE: 20,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.CELSIUS,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Basement climate",
+        options=_sensor_options(),
+    )
+    entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"name": "Basement climate", CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER},
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_WEATHER_ENTITY: "weather.home",
+            CONF_CONDENSATION_THRESHOLD: 0.0,
+            CONF_HYSTERESIS: 0.5,
+        },
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_SOURCE_TYPE] == SOURCE_TYPE_WEATHER
+    assert entry.options[CONF_WEATHER_ENTITY] == "weather.home"
+    assert CONF_TEMPERATURE_SENSOR not in entry.options
+    assert CONF_HUMIDITY_SENSOR not in entry.options
+
+
 async def test_user_flow_rejects_air_temperature_outside_calculation_range(
     hass: HomeAssistant,
 ) -> None:
@@ -290,11 +494,9 @@ async def test_user_flow_rejects_air_temperature_outside_calculation_range(
             ATTR_UNIT_OF_MEASUREMENT: UnitOfTemperature.CELSIUS,
         },
     )
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], _user_input()
+        result["flow_id"], _sensor_input()
     )
 
     assert result["type"] is FlowResultType.FORM
@@ -388,11 +590,9 @@ async def test_user_flow_rejects_source_metadata_and_value_errors(
     """Each source field reports a concrete compatibility error."""
     _set_sources(hass)
     hass.states.async_set(entity_id, state, attributes)
-    user_input = _user_input()
+    user_input = _sensor_input()
     user_input[source_key] = entity_id
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass)
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input
@@ -407,11 +607,9 @@ async def test_user_flow_rejects_invalid_missing_and_non_sensor_sources(
 ) -> None:
     """An entity ID with no state or registry row is rejected."""
     _set_sources(hass)
-    user_input = _user_input()
+    user_input = _sensor_input()
     user_input[CONF_TEMPERATURE_SENSOR] = "sensor.missing"
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass)
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], user_input
@@ -433,14 +631,13 @@ async def test_user_flow_rejects_invalid_settings(
 ) -> None:
     """Name, threshold, and hysteresis validation is finite and bounded."""
     _set_sources(hass)
-    user_input = _user_input()
-    user_input[field] = value
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], user_input
+        result["flow_id"],
+        {field: value, CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS},
     )
 
     assert result["type"] is FlowResultType.FORM
@@ -477,16 +674,14 @@ async def test_user_flow_contains_temperature_conversion_errors(
 ) -> None:
     """A conversion failure becomes a form error instead of escaping the flow."""
     _set_sources(hass)
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass)
 
     with patch(
         "custom_components.dew_point.config_flow.TemperatureConverter.convert",
         side_effect=ValueError,
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], _user_input()
+            result["flow_id"], _sensor_input()
         )
 
     assert result["type"] is FlowResultType.FORM
@@ -514,11 +709,8 @@ async def test_user_flow_accepts_registered_unavailable_sources(
         original_device_class=SensorDeviceClass.HUMIDITY,
         unit_of_measurement=PERCENTAGE,
     )
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
+    result = await _start_sensor_flow(hass, name="Registered sources")
     user_input = {
-        "name": "Registered sources",
         CONF_TEMPERATURE_SENSOR: "sensor.registered_temperature",
         CONF_HUMIDITY_SENSOR: "sensor.registered_humidity",
         CONF_CONDENSATION_THRESHOLD: DEFAULT_CONDENSATION_THRESHOLD,

@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 from enum import StrEnum
+import math
 from typing import Any
 
 from homeassistant.components.repairs import ConfirmRepairFlow, RepairsFlow
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
     Platform,
+    UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
@@ -21,16 +30,19 @@ from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
 from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
+from .calculation import MAX_WATER_TEMPERATURE_C, MIN_BUCK_TEMPERATURE_C
 from .const import (
     CONF_HUMIDITY_SENSOR,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DOMAIN,
 )
 
 CONF_REPLACEMENT_ENTITY = "replacement_entity"
 
 _SOURCE_KINDS = {
+    CONF_WEATHER_ENTITY: "weather",
     CONF_TEMPERATURE_SENSOR: "temperature",
     CONF_HUMIDITY_SENSOR: "humidity",
     CONF_SURFACE_TEMPERATURE_SENSOR: "surface_temperature",
@@ -116,17 +128,25 @@ def _selector_for_source(
     hass: HomeAssistant, entry: ConfigEntry, source_key: str
 ) -> EntitySelector:
     """Return a device-class filtered selector for a source."""
-    device_class = (
-        SensorDeviceClass.TEMPERATURE
-        if source_key in _TEMPERATURE_SOURCE_KEYS
-        else SensorDeviceClass.HUMIDITY
-    )
     own_entities = [
         entity.entity_id
         for entity in er.async_entries_for_config_entry(
             er.async_get(hass), entry.entry_id
         )
     ]
+    if source_key == CONF_WEATHER_ENTITY:
+        return EntitySelector(
+            EntitySelectorConfig(
+                domain=Platform.WEATHER,
+                exclude_entities=own_entities,
+            )
+        )
+
+    device_class = (
+        SensorDeviceClass.TEMPERATURE
+        if source_key in _TEMPERATURE_SOURCE_KEYS
+        else SensorDeviceClass.HUMIDITY
+    )
     return EntitySelector(
         EntitySelectorConfig(
             domain=Platform.SENSOR,
@@ -151,6 +171,33 @@ def _replacement_error(
     if state is None and registry_entry is None:
         return "replacement_missing"
 
+    if source_key == CONF_WEATHER_ENTITY:
+        if not resolved_entity_id.startswith(f"{Platform.WEATHER}."):
+            return "replacement_incompatible"
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None
+        temperature = _finite_float(state.attributes.get(ATTR_WEATHER_TEMPERATURE))
+        humidity = _finite_float(state.attributes.get(ATTR_WEATHER_HUMIDITY))
+        unit = state.attributes.get(ATTR_WEATHER_TEMPERATURE_UNIT)
+        if (
+            temperature is None
+            or humidity is None
+            or unit not in TemperatureConverter.VALID_UNITS
+            or not 0 <= humidity <= 100
+        ):
+            return "replacement_incompatible"
+        try:
+            temperature_c = TemperatureConverter.convert(
+                temperature, unit, UnitOfTemperature.CELSIUS
+            )
+        except (TypeError, ValueError):
+            return "replacement_incompatible"
+        return (
+            None
+            if MIN_BUCK_TEMPERATURE_C <= temperature_c <= MAX_WATER_TEMPERATURE_C
+            else "replacement_incompatible"
+        )
+
     device_class = state.attributes.get(ATTR_DEVICE_CLASS) if state else None
     unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
     if registry_entry is not None:
@@ -170,6 +217,15 @@ def _replacement_error(
     if device_class not in (None, SensorDeviceClass.HUMIDITY) or unit != PERCENTAGE:
         return "replacement_incompatible"
     return None
+
+
+def _finite_float(value: object) -> float | None:
+    """Return a finite float or None."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return result if math.isfinite(result) else None
 
 
 class SourceRepairFlow(RepairsFlow):
