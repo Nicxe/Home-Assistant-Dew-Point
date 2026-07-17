@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
@@ -19,9 +24,13 @@ from custom_components.dew_point.config_flow import CONFIG_FLOW, OPTIONS_FLOW
 from custom_components.dew_point.const import (
     CONF_CONDENSATION_THRESHOLD,
     CONF_HUMIDITY_SENSOR,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DOMAIN,
+    SOURCE_TYPE_SENSORS,
+    SOURCE_TYPE_WEATHER,
 )
 from custom_components.dew_point.preview import (
     ATTR_ABSOLUTE_HUMIDITY,
@@ -100,6 +109,48 @@ async def test_preview_publishes_and_tracks_sources(hass: HomeAssistant) -> None
     assert update.call_count == 2
 
 
+async def test_preview_reads_and_tracks_weather_attributes(
+    hass: HomeAssistant,
+) -> None:
+    """Weather previews use both current measurements from one entity."""
+    hass.states.async_set(
+        "weather.home",
+        "sunny",
+        {
+            ATTR_WEATHER_TEMPERATURE: 68,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.FAHRENHEIT,
+            ATTR_WEATHER_HUMIDITY: 50,
+        },
+    )
+    update = Mock()
+    preview = DewPointPreview(
+        hass,
+        {
+            CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER,
+            CONF_WEATHER_ENTITY: "weather.home",
+        },
+        update,
+    )
+
+    unsubscribe = preview.async_start()
+    assert float(update.call_args.args[0]) == pytest.approx(9.27, abs=0.02)
+
+    hass.states.async_set(
+        "weather.home",
+        "cloudy",
+        {
+            ATTR_WEATHER_TEMPERATURE: 68,
+            ATTR_WEATHER_TEMPERATURE_UNIT: UnitOfTemperature.FAHRENHEIT,
+            ATTR_WEATHER_HUMIDITY: 60,
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert update.call_count == 2
+    assert float(update.call_args.args[0]) > 11
+    unsubscribe()
+
+
 async def test_preview_handles_partial_and_invalid_input(hass: HomeAssistant) -> None:
     """A partially completed form produces an unknown preview without errors."""
     update = Mock()
@@ -147,8 +198,10 @@ async def test_preview_is_declared_and_registers_websocket(
     hass: HomeAssistant,
 ) -> None:
     """Both flow forms expose the integration's registered preview command."""
-    assert CONFIG_FLOW["user"].preview == DOMAIN
-    assert OPTIONS_FLOW["init"].preview == DOMAIN
+    assert CONFIG_FLOW[SOURCE_TYPE_SENSORS].preview == DOMAIN
+    assert CONFIG_FLOW[SOURCE_TYPE_WEATHER].preview == DOMAIN
+    assert OPTIONS_FLOW[SOURCE_TYPE_SENSORS].preview == DOMAIN
+    assert OPTIONS_FLOW[SOURCE_TYPE_WEATHER].preview == DOMAIN
 
     with patch(
         "custom_components.dew_point.preview.websocket_api.async_register_command"
@@ -196,7 +249,10 @@ async def test_flow_options_merges_only_options_flow_changes(
         "user_input": _options(),
     }
     with patch.object(hass.config_entries.flow, "async_get", return_value={}):
-        assert _flow_options(hass, config_message) == _options()
+        assert _flow_options(hass, config_message) == {
+            **_options(),
+            CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
+        }
 
     entry_options = {**_options(), "name": "Saved"}
     entry = MockConfigEntry(domain=DOMAIN, title="Saved", options=entry_options)

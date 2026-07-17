@@ -65,13 +65,15 @@ The setup form asks for:
 | Setting | Required | Default | Description |
 | --- | --- | --- | --- |
 | Name | Yes | `Dew Point` | A descriptive name for this helper, such as `Bathroom` or `Greenhouse`. |
-| Temperature source | Yes | — | The air temperature used by every calculation. |
-| Relative humidity source | Yes | — | The relative humidity of the same air mass. |
+| Temperature and humidity source | Yes | Separate sensors | Choose separate sensor entities or the current attributes of one `weather.*` entity. |
+| Temperature source | Sensor mode | — | The air temperature used by every calculation. |
+| Relative humidity source | Sensor mode | — | The relative humidity of the same air mass. |
+| Weather entity | Weather mode | — | Supplies both current temperature and relative humidity from its state attributes. |
 | Surface temperature source | No | None | Enables the surface margin and condensation-risk entities. Choose a sensor that measures the surface you want to protect. |
 | Condensation threshold | Yes | `0.0 °C` | Risk turns on when the surface-to-dew-point margin is at or below this value. Accepted range: -20 to 20 °C. |
 | Condensation hysteresis | Yes | `0.5 °C` | Extra margin required before an active risk turns off. Accepted range: 0 to 20 °C. |
 
-The form validates the selected entities and shows a live calculation preview when the Home Assistant frontend supports config-flow previews. An identical temperature, humidity, and surface-source combination cannot be added twice. You can still create multiple helpers for different rooms, sensor pairs, or surfaces.
+After choosing a source type, the next form shows only the relevant source fields. It validates the selected entities and shows a live calculation preview when the Home Assistant frontend supports config-flow previews. An identical weather or sensor source combination cannot be added twice. You can still create multiple helpers for different rooms, source pairs, or surfaces.
 
 To change the sources or condensation settings later, open **Settings > Devices & services > Dew Point**, select the integration entry, and choose **Configure**. Saved changes reload the helper automatically.
 
@@ -81,11 +83,12 @@ To change the sources or condensation settings later, open **Settings > Devices 
 | --- | --- | --- | --- |
 | Air temperature | `temperature` | `°C`, `°F`, or `K` | Finite numeric value which converts to -80 through 50 °C |
 | Relative humidity | `humidity` | `%` | Finite numeric value from 0 through 100 |
+| Weather entity | `weather.*` domain | Temperature unit attribute: `°C`, `°F`, or `K` | Finite `temperature` attribute from -80 through 50 °C and finite `humidity` attribute from 0 through 100 |
 | Surface temperature | `temperature` | `°C`, `°F`, or `K` | Finite numeric value; used only for the surface comparison |
 
 The selectors prioritize sensors with the correct Home Assistant device class. For compatibility with older integrations, a sensor without a device class can still be accepted when its unit clearly identifies it as temperature or relative humidity.
 
-A registered source that is temporarily `unknown` or `unavailable` may still be saved when its registry metadata establishes that it is compatible. Calculations resume automatically when that source reports a valid state.
+A registered source that is temporarily `unknown` or `unavailable` may still be saved when its registry metadata establishes that it is compatible. This also applies to a registered weather entity before its attributes load. Calculations resume automatically when that source reports valid data.
 
 ## Entities
 
@@ -179,7 +182,7 @@ A positive threshold provides an earlier warning before the surface reaches dew 
 
 The helper reads one shared snapshot and recalculates all derived values whenever any configured source changes. It does not poll on a fixed schedule.
 
-- If the required air-temperature or humidity source is missing, `unknown`, `unavailable`, non-numeric, out of range, or has incompatible metadata, all atmospheric derived entities become `unavailable`.
+- If a required air-temperature or humidity sensor, or either required weather attribute, is missing, `unknown`, `unavailable`, non-numeric, out of range, or incompatible, all atmospheric derived entities become `unavailable`.
 - If only the optional surface source is unavailable, the normal atmospheric sensors continue working; the surface margin and condensation-risk entities become `unavailable`.
 - If the input is valid but a particular result is mathematically undefined, that entity is `unknown` rather than `unavailable`. RH = 0% and a frost point outside the supported ice range are examples.
 - Calculations and entity availability recover automatically when valid source data returns.

@@ -34,7 +34,9 @@ from custom_components.dew_point.const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HYSTERESIS,
     CONF_OUTPUT_UNIT,
+    CONF_SOURCE_TYPE,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     CONFIG_ENTRY_MINOR_VERSION,
     DEFAULT_CONDENSATION_THRESHOLD,
     DEFAULT_HYSTERESIS,
@@ -42,6 +44,8 @@ from custom_components.dew_point.const import (
     OUTPUT_UNIT_AUTO,
     OUTPUT_UNIT_FAHRENHEIT,
     PLATFORMS,
+    SOURCE_TYPE_SENSORS,
+    SOURCE_TYPE_WEATHER,
 )
 from custom_components.dew_point.repairs import (
     SourceIssueType,
@@ -58,6 +62,7 @@ def _canonical_entry() -> MockConfigEntry:
         data={},
         options={
             CONF_NAME: "Room",
+            CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
             CONF_TEMPERATURE_SENSOR: "sensor.temperature",
             CONF_HUMIDITY_SENSOR: "sensor.humidity",
             CONF_CONDENSATION_THRESHOLD: DEFAULT_CONDENSATION_THRESHOLD,
@@ -207,6 +212,44 @@ async def test_source_entity_rename_updates_options_and_reloads(
     reload_mock.assert_called_once_with(entry.entry_id)
 
 
+async def test_weather_entity_rename_updates_options_and_reloads(
+    hass: HomeAssistant,
+) -> None:
+    """A configured weather entity follows registry renames."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Home weather",
+        options={
+            CONF_NAME: "Home weather",
+            CONF_SOURCE_TYPE: SOURCE_TYPE_WEATHER,
+            CONF_WEATHER_ENTITY: "weather.home",
+        },
+        version=1,
+        minor_version=CONFIG_ENTRY_MINOR_VERSION,
+    )
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "weather",
+        "test",
+        "home",
+        suggested_object_id="home",
+    )
+
+    with (
+        patch.object(hass.config_entries, "async_forward_entry_setups", AsyncMock()),
+        patch.object(hass.config_entries, "async_schedule_reload") as reload_mock,
+    ):
+        await async_setup_entry(hass, entry)
+        registry.async_update_entity(
+            "weather.home", new_entity_id="weather.renamed_home"
+        )
+        await hass.async_block_till_done()
+
+    assert entry.options[CONF_WEATHER_ENTITY] == "weather.renamed_home"
+    reload_mock.assert_called_once_with(entry.entry_id)
+
+
 async def test_source_entity_removal_creates_actionable_issue(
     hass: HomeAssistant,
 ) -> None:
@@ -280,6 +323,7 @@ async def test_v1_migration_canonicalizes_and_preserves_registry_settings(
     assert entry.data == {}
     assert entry.options == {
         CONF_NAME: "Legacy room",
+        CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
         CONF_TEMPERATURE_SENSOR: "sensor.temperature",
         CONF_HUMIDITY_SENSOR: "sensor.humidity",
         CONF_CONDENSATION_THRESHOLD: DEFAULT_CONDENSATION_THRESHOLD,
@@ -294,6 +338,38 @@ async def test_v1_migration_canonicalizes_and_preserves_registry_settings(
     assert migrated_entity.unique_id == "legacy_entry_dew_point"
     assert migrated_entity.unit_of_measurement == UnitOfTemperature.FAHRENHEIT
     assert migrated_entity.options[SENSOR_DOMAIN]["display_precision"] == 2
+
+
+async def test_v1_2_migration_only_adds_separate_sensor_source_type(
+    hass: HomeAssistant,
+) -> None:
+    """Current canonical entries gain a source type without legacy side effects."""
+    original_options = {
+        CONF_NAME: "Current room",
+        CONF_TEMPERATURE_SENSOR: "sensor.temperature",
+        CONF_HUMIDITY_SENSOR: "sensor.humidity",
+        CONF_CONDENSATION_THRESHOLD: 1.0,
+        CONF_HYSTERESIS: 0.75,
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Current room",
+        data={},
+        options=original_options,
+        version=1,
+        minor_version=2,
+    )
+    entry.add_to_hass(hass)
+
+    assert await async_migrate_entry(hass, entry) is True
+
+    assert entry.options == {
+        **original_options,
+        CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
+    }
+    assert CONF_DECIMAL_PLACES not in entry.options
+    assert CONF_OUTPUT_UNIT not in entry.options
+    assert entry.minor_version == CONFIG_ENTRY_MINOR_VERSION
 
 
 async def test_v1_migration_preserves_existing_registry_overrides(

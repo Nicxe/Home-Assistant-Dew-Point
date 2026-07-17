@@ -7,6 +7,11 @@ import math
 from typing import Any
 
 from homeassistant.components import websocket_api
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.const import (
     ATTR_UNIT_OF_MEASUREMENT,
     PERCENTAGE,
@@ -30,10 +35,14 @@ from .calculation import calculate_moist_air_properties
 from .const import (
     CONF_CONDENSATION_THRESHOLD,
     CONF_HUMIDITY_SENSOR,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DEFAULT_CONDENSATION_THRESHOLD,
     DOMAIN,
+    SOURCE_TYPE_SENSORS,
+    SOURCE_TYPE_WEATHER,
 )
 
 ATTR_ABSOLUTE_HUMIDITY = "absolute_humidity"
@@ -95,7 +104,7 @@ def _flow_options(hass: HomeAssistant, msg: Mapping[str, Any]) -> dict[str, Any]
     user_input = dict(msg["user_input"])
     if msg["flow_type"] == "config_flow":
         hass.config_entries.flow.async_get(msg["flow_id"])
-        return user_input
+        return _normalize_preview_options(user_input, user_input)
 
     flow_status = hass.config_entries.options.async_get(msg["flow_id"])
     config_entry = hass.config_entries.async_get_entry(flow_status["handler"])
@@ -104,6 +113,23 @@ def _flow_options(hass: HomeAssistant, msg: Mapping[str, Any]) -> dict[str, Any]
     options = {**config_entry.options, **user_input}
     if CONF_SURFACE_TEMPERATURE_SENSOR not in user_input:
         options.pop(CONF_SURFACE_TEMPERATURE_SENSOR, None)
+    return _normalize_preview_options(options, user_input)
+
+
+def _normalize_preview_options(
+    options: dict[str, Any], current_input: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Infer the active source form and discard stale options for previews."""
+    if CONF_WEATHER_ENTITY in current_input:
+        options[CONF_SOURCE_TYPE] = SOURCE_TYPE_WEATHER
+        options.pop(CONF_TEMPERATURE_SENSOR, None)
+        options.pop(CONF_HUMIDITY_SENSOR, None)
+    elif (
+        CONF_TEMPERATURE_SENSOR in current_input
+        or CONF_HUMIDITY_SENSOR in current_input
+    ):
+        options[CONF_SOURCE_TYPE] = SOURCE_TYPE_SENSORS
+        options.pop(CONF_WEATHER_ENTITY, None)
     return options
 
 
@@ -119,12 +145,20 @@ class DewPointPreview:
         """Initialize a preview from partially completed form input."""
         self.hass = hass
         self.update_callback = update_callback
-        self.temperature_entity_id = self._resolve_source(
-            options.get(CONF_TEMPERATURE_SENSOR)
-        )
-        self.humidity_entity_id = self._resolve_source(
-            options.get(CONF_HUMIDITY_SENSOR)
-        )
+        self.source_type = options.get(CONF_SOURCE_TYPE, SOURCE_TYPE_SENSORS)
+        self.weather_entity_id = self._resolve_source(options.get(CONF_WEATHER_ENTITY))
+        if self.weather_entity_id is not None:
+            self.source_type = SOURCE_TYPE_WEATHER
+            self.temperature_entity_id = self.weather_entity_id
+            self.humidity_entity_id = self.weather_entity_id
+        else:
+            self.source_type = SOURCE_TYPE_SENSORS
+            self.temperature_entity_id = self._resolve_source(
+                options.get(CONF_TEMPERATURE_SENSOR)
+            )
+            self.humidity_entity_id = self._resolve_source(
+                options.get(CONF_HUMIDITY_SENSOR)
+            )
         self.surface_temperature_entity_id = self._resolve_source(
             options.get(CONF_SURFACE_TEMPERATURE_SENSOR)
         )
@@ -161,8 +195,11 @@ class DewPointPreview:
     @callback
     def async_refresh(self) -> None:
         """Publish one consistent preview snapshot."""
-        temperature = self._temperature(self.temperature_entity_id)
-        humidity = self._humidity(self.humidity_entity_id)
+        if self.weather_entity_id is not None:
+            temperature, humidity = self._weather_values(self.weather_entity_id)
+        else:
+            temperature = self._temperature(self.temperature_entity_id)
+            humidity = self._humidity(self.humidity_entity_id)
         surface_temperature = self._temperature(self.surface_temperature_entity_id)
 
         properties = None
@@ -252,6 +289,29 @@ class DewPointPreview:
         except (TypeError, ValueError):
             return None
         return celsius if math.isfinite(celsius) else None
+
+    def _weather_values(self, entity_id: str) -> tuple[float | None, float | None]:
+        """Read weather temperature and humidity attributes for a preview."""
+        state = self.hass.states.get(entity_id)
+        if state is None or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            return None, None
+        temperature = _finite_float(state.attributes.get(ATTR_WEATHER_TEMPERATURE))
+        unit = state.attributes.get(ATTR_WEATHER_TEMPERATURE_UNIT)
+        humidity = _finite_float(state.attributes.get(ATTR_WEATHER_HUMIDITY))
+        if temperature is None or unit not in TemperatureConverter.VALID_UNITS:
+            temperature_c = None
+        else:
+            try:
+                temperature_c = TemperatureConverter.convert(
+                    temperature, unit, UnitOfTemperature.CELSIUS
+                )
+            except (TypeError, ValueError):
+                temperature_c = None
+        if temperature_c is not None and not math.isfinite(temperature_c):
+            temperature_c = None
+        if humidity is None or not 0 <= humidity <= 100:
+            humidity = None
+        return temperature_c, humidity
 
     def _humidity(self, entity_id: str | None) -> float | None:
         """Read a finite relative-humidity percentage."""

@@ -140,3 +140,37 @@ async def test_diagnostics_categorizes_registered_unloaded_source(hass) -> None:
         "device_class": SensorDeviceClass.TEMPERATURE,
         "unit_of_measurement": UnitOfTemperature.KELVIN,
     }
+
+
+async def test_diagnostics_reports_weather_health_without_attributes(hass) -> None:
+    """Weather diagnostics expose source health without environmental readings."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        options={
+            "name": "Home",
+            "source_type": "weather",
+            "weather_entity": "weather.home",
+        },
+    )
+    entry.add_to_hass(hass)
+    hass.states.async_set(
+        "weather.home",
+        "sunny",
+        {
+            "temperature": 21.5,
+            "temperature_unit": UnitOfTemperature.CELSIUS,
+            "humidity": 48,
+        },
+    )
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+
+    assert diagnostics["config_entry"]["configuration"]["source_type"] == "weather"
+    assert diagnostics["sources"]["weather_entity"] == {
+        "entity_id": "weather.home",
+        "state_status": "present",
+        "device_class": None,
+        "unit_of_measurement": None,
+    }
+    assert "21.5" not in str(diagnostics)
+    assert "48" not in str(diagnostics)

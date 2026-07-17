@@ -11,8 +11,10 @@ DOMAIN: Final = "dew_point"
 PLATFORMS: Final = (Platform.SENSOR, Platform.BINARY_SENSOR)
 
 CONFIG_ENTRY_VERSION: Final = 1
-CONFIG_ENTRY_MINOR_VERSION: Final = 2
+CONFIG_ENTRY_MINOR_VERSION: Final = 3
 
+CONF_SOURCE_TYPE: Final = "source_type"
+CONF_WEATHER_ENTITY: Final = "weather_entity"
 CONF_TEMPERATURE_SENSOR: Final = "temperature_sensor"
 CONF_HUMIDITY_SENSOR: Final = "humidity_sensor"
 CONF_SURFACE_TEMPERATURE_SENSOR: Final = "surface_temperature_sensor"
@@ -20,6 +22,8 @@ CONF_CONDENSATION_THRESHOLD: Final = "condensation_threshold"
 CONF_HYSTERESIS: Final = "hysteresis"
 
 DEFAULT_NAME: Final = "Dew Point"
+SOURCE_TYPE_SENSORS: Final = "sensors"
+SOURCE_TYPE_WEATHER: Final = "weather"
 DEFAULT_CONDENSATION_THRESHOLD: Final = 0.0
 DEFAULT_HYSTERESIS: Final = 0.5
 

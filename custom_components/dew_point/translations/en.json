@@ -7,6 +7,8 @@
     },
     "error": {
       "invalid_name": "Enter a name between 1 and 100 characters",
+      "invalid_source_type": "Select how Dew Point should read temperature and humidity",
+      "invalid_weather_entity": "Select a weather entity with valid temperature and humidity attributes",
       "invalid_temperature_sensor": "Select a temperature sensor with a supported unit and a current value from -80 to 50 °C",
       "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
       "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
@@ -16,9 +18,10 @@
     "step": {
       "user": {
         "title": "Create a Dew Point helper",
-        "description": "Calculate dew point and related humidity measurements from temperature and relative humidity. A surface temperature source is optional and enables condensation risk measurements.",
+        "description": "Choose whether to use separate sensors or the temperature and humidity attributes of one weather entity.",
         "data": {
           "name": "Name",
+          "source_type": "Temperature and humidity source",
           "temperature_sensor": "Temperature source",
           "humidity_sensor": "Relative humidity source",
           "surface_temperature_sensor": "Surface temperature source (optional)",
@@ -27,8 +30,43 @@
         },
         "data_description": {
           "name": "A descriptive name for this helper.",
+          "source_type": "Use two sensor entities, or read both measurements from a weather entity.",
           "temperature_sensor": "The air temperature sensor used for all calculations.",
           "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
+        }
+      },
+      "sensors": {
+        "title": "Select sensor sources",
+        "description": "Select separate sensors for air temperature and relative humidity. A surface temperature source is optional and enables condensation risk measurements.",
+        "data": {
+          "temperature_sensor": "Temperature source",
+          "humidity_sensor": "Relative humidity source",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
+        },
+        "data_description": {
+          "temperature_sensor": "The air temperature sensor used for all calculations.",
+          "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
+        }
+      },
+      "weather": {
+        "title": "Select a weather source",
+        "description": "Use the current temperature and humidity attributes from one weather entity. A surface temperature source is optional and enables condensation risk measurements.",
+        "data": {
+          "weather_entity": "Weather entity",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
+        },
+        "data_description": {
+          "weather_entity": "The weather entity whose current temperature and humidity attributes are used for all calculations.",
           "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
           "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
           "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
@@ -59,6 +97,8 @@
   "options": {
     "error": {
       "invalid_name": "Enter a name between 1 and 100 characters",
+      "invalid_source_type": "Select how Dew Point should read temperature and humidity",
+      "invalid_weather_entity": "Select a weather entity with valid temperature and humidity attributes",
       "invalid_temperature_sensor": "Select a temperature sensor with a supported unit and a current value from -80 to 50 °C",
       "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
       "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
@@ -68,9 +108,10 @@
     "step": {
       "init": {
         "title": "Configure {name}",
-        "description": "Change the measurement sources and condensation risk settings. Changes take effect immediately after saving.",
+        "description": "Choose whether to use separate sensors or the temperature and humidity attributes of one weather entity.",
         "data": {
           "name": "Name",
+          "source_type": "Temperature and humidity source",
           "temperature_sensor": "Temperature source",
           "humidity_sensor": "Relative humidity source",
           "surface_temperature_sensor": "Surface temperature source (optional)",
@@ -79,12 +120,55 @@
         },
         "data_description": {
           "name": "A descriptive name for this helper.",
+          "source_type": "Use two sensor entities, or read both measurements from a weather entity.",
           "temperature_sensor": "The air temperature sensor used for all calculations.",
           "humidity_sensor": "The relative humidity sensor used for all calculations.",
           "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
           "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
           "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
         }
+      },
+      "sensors": {
+        "title": "[%key:component::dew_point::config::step::sensors::title%]",
+        "description": "Select separate sensors for air temperature and relative humidity. Changes take effect immediately after saving.",
+        "data": {
+          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::sensors::data::hysteresis%]"
+        },
+        "data_description": {
+          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::temperature_sensor%]",
+          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data_description::humidity_sensor%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::sensors::data_description::hysteresis%]"
+        }
+      },
+      "weather": {
+        "title": "[%key:component::dew_point::config::step::weather::title%]",
+        "description": "Use the current temperature and humidity attributes from one weather entity. Changes take effect immediately after saving.",
+        "data": {
+          "weather_entity": "[%key:component::dew_point::config::step::weather::data::weather_entity%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::weather::data::hysteresis%]"
+        },
+        "data_description": {
+          "weather_entity": "[%key:component::dew_point::config::step::weather::data_description::weather_entity%]",
+          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data_description::surface_temperature_sensor%]",
+          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data_description::condensation_threshold%]",
+          "hysteresis": "[%key:component::dew_point::config::step::weather::data_description::hysteresis%]"
+        }
+      }
+    }
+  },
+  "selector": {
+    "source_type": {
+      "options": {
+        "sensors": "Separate temperature and humidity sensors",
+        "weather": "Weather entity attributes"
       }
     }
   },
@@ -122,6 +206,38 @@
     }
   },
   "issues": {
+    "weather_source_missing": {
+      "title": "{helper_name}: weather source {entity_id} is missing",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a weather entity with valid temperature and humidity attributes"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the weather source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} no longer exists. Select a replacement weather entity.",
+            "data": { "replacement_entity": "Replacement weather source" }
+          }
+        }
+      }
+    },
+    "weather_source_incompatible": {
+      "title": "{helper_name}: weather source {entity_id} is incompatible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a weather entity with valid temperature and humidity attributes"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the weather source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} no longer provides compatible temperature and humidity attributes. Select a replacement.",
+            "data": { "replacement_entity": "Replacement weather source" }
+          }
+        }
+      }
+    },
     "temperature_source_missing": {
       "title": "{helper_name}: temperature source {entity_id} is missing",
       "fix_flow": {

@@ -9,6 +9,11 @@ import logging
 import math
 
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.components.weather import (
+    ATTR_WEATHER_HUMIDITY,
+    ATTR_WEATHER_TEMPERATURE,
+    ATTR_WEATHER_TEMPERATURE_UNIT,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
@@ -37,14 +42,18 @@ from .const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HYSTERESIS,
     CONF_OUTPUT_UNIT,
+    CONF_SOURCE_TYPE,
     CONF_SURFACE_TEMPERATURE_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_WEATHER_ENTITY,
     DEFAULT_CONDENSATION_THRESHOLD,
     DEFAULT_DECIMAL_PLACES,
     DEFAULT_HYSTERESIS,
     OUTPUT_UNIT_AUTO,
     OUTPUT_UNIT_CELSIUS,
     OUTPUT_UNIT_FAHRENHEIT,
+    SOURCE_TYPE_SENSORS,
+    SOURCE_TYPE_WEATHER,
 )
 from .repairs import SourceIssueType, async_update_source_issue
 
@@ -95,8 +104,16 @@ class DewPointRuntime:
         self.hass = hass
         self.entry = entry
         self.name = str(entry.options.get(CONF_NAME, entry.title))
-        self.temperature_entity_id = str(entry.options[CONF_TEMPERATURE_SENSOR])
-        self.humidity_entity_id = str(entry.options[CONF_HUMIDITY_SENSOR])
+        self.source_type = str(entry.options.get(CONF_SOURCE_TYPE, SOURCE_TYPE_SENSORS))
+        self.weather_entity_id: str | None = None
+        if self.source_type == SOURCE_TYPE_WEATHER:
+            self.weather_entity_id = str(entry.options[CONF_WEATHER_ENTITY])
+            self.temperature_entity_id = self.weather_entity_id
+            self.humidity_entity_id = self.weather_entity_id
+        else:
+            self.source_type = SOURCE_TYPE_SENSORS
+            self.temperature_entity_id = str(entry.options[CONF_TEMPERATURE_SENSOR])
+            self.humidity_entity_id = str(entry.options[CONF_HUMIDITY_SENSOR])
         surface = entry.options.get(CONF_SURFACE_TEMPERATURE_SENSOR)
         self.surface_temperature_entity_id = str(surface) if surface else None
         self.condensation_threshold = float(
@@ -150,7 +167,11 @@ class DewPointRuntime:
     @property
     def source_entity_ids(self) -> tuple[str, ...]:
         """Return configured source entity IDs."""
-        sources = [self.temperature_entity_id, self.humidity_entity_id]
+        sources = (
+            [self.weather_entity_id]
+            if self.weather_entity_id is not None
+            else [self.temperature_entity_id, self.humidity_entity_id]
+        )
         if self.surface_temperature_entity_id is not None:
             sources.append(self.surface_temperature_entity_id)
         return tuple(dict.fromkeys(sources))
@@ -174,14 +195,24 @@ class DewPointRuntime:
     @callback
     def async_refresh(self) -> None:
         """Read source states, update Repairs, and notify entities on change."""
-        temperature = self._read_temperature(
-            CONF_TEMPERATURE_SENSOR, self.temperature_entity_id
-        )
-        humidity = self._read_humidity(self.humidity_entity_id)
-        readings: dict[str, SourceReading] = {
-            CONF_TEMPERATURE_SENSOR: temperature,
-            CONF_HUMIDITY_SENSOR: humidity,
-        }
+        if self.weather_entity_id is not None:
+            temperature, humidity = self._read_weather(self.weather_entity_id)
+            readings: dict[str, SourceReading] = {
+                CONF_WEATHER_ENTITY: SourceReading(
+                    _combined_source_status(temperature.status, humidity.status)
+                )
+            }
+            atmospheric_source_key = CONF_WEATHER_ENTITY
+        else:
+            temperature = self._read_temperature(
+                CONF_TEMPERATURE_SENSOR, self.temperature_entity_id
+            )
+            humidity = self._read_humidity(self.humidity_entity_id)
+            readings = {
+                CONF_TEMPERATURE_SENSOR: temperature,
+                CONF_HUMIDITY_SENSOR: humidity,
+            }
+            atmospheric_source_key = CONF_TEMPERATURE_SENSOR
 
         surface = SourceReading(SourceStatus.UNAVAILABLE)
         if self.surface_temperature_entity_id is not None:
@@ -207,7 +238,9 @@ class DewPointRuntime:
                     native_value=temperature.native_value,
                     native_unit=temperature.native_unit,
                 )
-                readings[CONF_TEMPERATURE_SENSOR] = temperature
+                readings[atmospheric_source_key] = SourceReading(
+                    SourceStatus.INCOMPATIBLE
+                )
 
         margin: float | None = None
         if (
@@ -247,6 +280,59 @@ class DewPointRuntime:
         self.source_statuses = new_statuses
         for listener in tuple(self._listeners):
             listener()
+
+    def _read_weather(self, entity_id: str) -> tuple[SourceReading, SourceReading]:
+        """Read temperature and humidity attributes from one weather entity."""
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            status = self._missing_or_unavailable(entity_id)
+            return SourceReading(status), SourceReading(status)
+        if state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            unavailable = SourceReading(SourceStatus.UNAVAILABLE)
+            return unavailable, unavailable
+
+        native_temperature = _finite_float(
+            state.attributes.get(ATTR_WEATHER_TEMPERATURE)
+        )
+        temperature_unit = state.attributes.get(ATTR_WEATHER_TEMPERATURE_UNIT)
+        if (
+            native_temperature is None
+            or temperature_unit not in TemperatureConverter.VALID_UNITS
+        ):
+            temperature = SourceReading(SourceStatus.INCOMPATIBLE)
+        else:
+            try:
+                temperature_c = TemperatureConverter.convert(
+                    native_temperature,
+                    temperature_unit,
+                    UnitOfTemperature.CELSIUS,
+                )
+            except (TypeError, ValueError):
+                temperature = SourceReading(SourceStatus.INCOMPATIBLE)
+            else:
+                temperature = (
+                    SourceReading(
+                        SourceStatus.OK,
+                        value=temperature_c,
+                        native_value=native_temperature,
+                        native_unit=temperature_unit,
+                    )
+                    if math.isfinite(temperature_c)
+                    else SourceReading(SourceStatus.INCOMPATIBLE)
+                )
+
+        humidity_value = _finite_float(state.attributes.get(ATTR_WEATHER_HUMIDITY))
+        humidity = (
+            SourceReading(
+                SourceStatus.OK,
+                value=humidity_value,
+                native_value=humidity_value,
+                native_unit=PERCENTAGE,
+            )
+            if humidity_value is not None and 0 <= humidity_value <= 100
+            else SourceReading(SourceStatus.INCOMPATIBLE)
+        )
+        return temperature, humidity
 
     def _read_temperature(self, source_key: str, entity_id: str) -> SourceReading:
         """Read and normalize one temperature source to Celsius."""
@@ -333,6 +419,7 @@ class DewPointRuntime:
     def _update_source_issues(self, readings: dict[str, SourceReading]) -> None:
         """Create only persistent, user-actionable source issues."""
         source_ids = {
+            CONF_WEATHER_ENTITY: self.weather_entity_id,
             CONF_TEMPERATURE_SENSOR: self.temperature_entity_id,
             CONF_HUMIDITY_SENSOR: self.humidity_entity_id,
             CONF_SURFACE_TEMPERATURE_SENSOR: self.surface_temperature_entity_id,
@@ -388,6 +475,18 @@ def _finite_float(value: object) -> float | None:
     except (TypeError, ValueError, OverflowError):
         return None
     return result if math.isfinite(result) else None
+
+
+def _combined_source_status(*statuses: SourceStatus) -> SourceStatus:
+    """Return the most actionable status for a multi-value source."""
+    for status in (
+        SourceStatus.INCOMPATIBLE,
+        SourceStatus.MISSING,
+        SourceStatus.UNAVAILABLE,
+    ):
+        if status in statuses:
+            return status
+    return SourceStatus.OK
 
 
 def _bounded_int(value: object, default: int, minimum: int, maximum: int) -> int:
