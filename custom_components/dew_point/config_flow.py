@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import logging
 import math
 from typing import Any, cast
 
@@ -70,6 +71,8 @@ from .const import (
     SOURCE_TYPE_WEATHER,
 )
 from .preview import async_setup_preview as async_setup_preview_api
+
+_LOGGER = logging.getLogger(__name__)
 
 _TEMPERATURE_SELECTOR_CONFIG = EntitySelectorConfig(
     domain=Platform.SENSOR,
@@ -220,6 +223,19 @@ async def _validate_input(
     handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
 ) -> dict[str, Any]:
     """Validate and normalize source entities and thresholds."""
+    try:
+        return _validated_input(handler, user_input)
+    except (AbortFlow, SchemaFlowError):
+        raise
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.exception("Unexpected error validating configuration")
+        raise SchemaFlowError("unknown") from err
+
+
+def _validated_input(
+    handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
+) -> dict[str, Any]:
+    """Return validated and normalized source settings."""
     options = {**handler.options, **user_input}
     if CONF_SURFACE_TEMPERATURE_SENSOR not in user_input:
         options.pop(CONF_SURFACE_TEMPERATURE_SENSOR, None)
@@ -303,7 +319,7 @@ def _validate_weather_source(handler: SchemaCommonFlowHandler, source: str) -> s
         temperature_c = TemperatureConverter.convert(
             temperature, unit, UnitOfTemperature.CELSIUS
         )
-    except (TypeError, ValueError) as err:
+    except (TypeError, ValueError, OverflowError) as err:
         raise SchemaFlowError(error_key) from err
     if not MIN_BUCK_TEMPERATURE_C <= temperature_c <= MAX_WATER_TEMPERATURE_C:
         raise SchemaFlowError(error_key)
@@ -314,7 +330,7 @@ def _finite_value(value: Any, error_key: str) -> float:
     """Return a finite float or raise a schema-flow error."""
     try:
         result = float(value)
-    except (TypeError, ValueError) as err:
+    except (TypeError, ValueError, OverflowError) as err:
         raise SchemaFlowError(error_key) from err
     if not math.isfinite(result):
         raise SchemaFlowError(error_key)
@@ -340,7 +356,7 @@ def _validate_temperature_source(
     if state is not None and state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
         try:
             value = float(state.state)
-        except (TypeError, ValueError) as err:
+        except (TypeError, ValueError, OverflowError) as err:
             raise SchemaFlowError(error_key) from err
         if not math.isfinite(value) or unit is None:
             raise SchemaFlowError(error_key)
@@ -348,7 +364,7 @@ def _validate_temperature_source(
             value_c = TemperatureConverter.convert(
                 value, unit, UnitOfTemperature.CELSIUS
             )
-        except (TypeError, ValueError) as err:
+        except (TypeError, ValueError, OverflowError) as err:
             raise SchemaFlowError(error_key) from err
         if enforce_calculation_range and not (
             MIN_BUCK_TEMPERATURE_C <= value_c <= MAX_WATER_TEMPERATURE_C
@@ -371,7 +387,7 @@ def _validate_humidity_source(handler: SchemaCommonFlowHandler, source: str) -> 
     if state is not None and state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
         try:
             value = float(state.state)
-        except (TypeError, ValueError) as err:
+        except (TypeError, ValueError, OverflowError) as err:
             raise SchemaFlowError(error_key) from err
         if not math.isfinite(value) or unit != PERCENTAGE or not 0 <= value <= 100:
             raise SchemaFlowError(error_key)
@@ -422,7 +438,7 @@ def _validate_finite_range(
     """Validate a finite numeric setting within an inclusive range."""
     try:
         result = float(value)
-    except (TypeError, ValueError) as err:
+    except (TypeError, ValueError, OverflowError) as err:
         raise SchemaFlowError(error_key) from err
     if not math.isfinite(result) or not minimum <= result <= maximum:
         raise SchemaFlowError(error_key)

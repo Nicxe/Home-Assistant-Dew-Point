@@ -12,14 +12,13 @@ from homeassistant.components.weather import (
 )
 from homeassistant.const import UnitOfTemperature
 from homeassistant.helpers import entity_registry as er, issue_registry as ir
-from pytest import raises
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dew_point import DOMAIN, repairs
 
 
-async def test_source_issue_lifecycle_is_limited_to_persistent_errors(hass) -> None:
-    """Only missing and incompatible sources can become repair issues."""
+async def test_source_issue_lifecycle_supports_persistent_source_errors(hass) -> None:
+    """Persistent missing, incompatible, and unavailable sources create issues."""
     entry = MockConfigEntry(domain=DOMAIN, title="Bedroom")
     entry.add_to_hass(hass)
 
@@ -49,8 +48,22 @@ async def test_source_issue_lifecycle_is_limited_to_persistent_errors(hass) -> N
         None,
     )
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
-    with raises(ValueError):
-        repairs.SourceIssueType("unavailable")
+
+    repairs.async_update_source_issue(
+        hass,
+        entry,
+        repairs.CONF_TEMPERATURE_SENSOR,
+        repairs.SourceIssueType.UNAVAILABLE,
+        entity_id="sensor.old_temperature",
+    )
+    unavailable_issue_id = repairs.source_issue_id(
+        entry.entry_id,
+        repairs.CONF_TEMPERATURE_SENSOR,
+        repairs.SourceIssueType.UNAVAILABLE,
+    )
+    unavailable_issue = ir.async_get(hass).async_get_issue(DOMAIN, unavailable_issue_id)
+    assert unavailable_issue is not None
+    assert unavailable_issue.translation_key == "temperature_source_unavailable"
 
 
 async def test_repair_flow_replaces_source_and_reloads(hass) -> None:

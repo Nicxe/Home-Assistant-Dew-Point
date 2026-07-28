@@ -58,6 +58,7 @@ class SourceIssueType(StrEnum):
 
     MISSING = "missing"
     INCOMPATIBLE = "incompatible"
+    UNAVAILABLE = "unavailable"
 
 
 def source_issue_id(entry_id: str, source_key: str, issue_type: SourceIssueType) -> str:
@@ -91,9 +92,9 @@ def async_update_source_issue(
 ) -> None:
     """Create or clear a persistent source issue.
 
-    Callers must only pass ``MISSING`` after a configured entity has been removed,
-    or ``INCOMPATIBLE`` when its metadata is persistently incompatible. Temporary
-    ``unknown`` or ``unavailable`` states are deliberately not issue types.
+    ``UNAVAILABLE`` must only be passed after the source has remained unavailable
+    beyond the runtime grace period, so normal startup ordering does not create
+    transient issues.
     """
     if source_key not in _SOURCE_KINDS:
         raise ValueError(f"Unsupported source key: {source_key}")
@@ -190,7 +191,7 @@ def _replacement_error(
             temperature_c = TemperatureConverter.convert(
                 temperature, unit, UnitOfTemperature.CELSIUS
             )
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return "replacement_incompatible"
         return (
             None

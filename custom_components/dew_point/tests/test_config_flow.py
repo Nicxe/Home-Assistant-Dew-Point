@@ -365,6 +365,56 @@ async def test_user_flow_aborts_exact_duplicate(hass: HomeAssistant) -> None:
     assert result["reason"] == "already_configured"
 
 
+async def test_user_flow_starts_while_existing_entry_has_missing_source(
+    hass: HomeAssistant,
+) -> None:
+    """A broken existing helper never prevents creation of another helper."""
+    _set_sources(hass)
+    existing = MockConfigEntry(
+        domain=DOMAIN,
+        title="Broken helper",
+        data={},
+        options={
+            "name": "Broken helper",
+            CONF_SOURCE_TYPE: SOURCE_TYPE_SENSORS,
+            CONF_TEMPERATURE_SENSOR: "sensor.old_temperature",
+            CONF_HUMIDITY_SENSOR: "sensor.missing_humidity",
+            CONF_CONDENSATION_THRESHOLD: DEFAULT_CONDENSATION_THRESHOLD,
+            CONF_HYSTERESIS: DEFAULT_HYSTERESIS,
+        },
+    )
+    existing.add_to_hass(hass)
+
+    result = await _start_sensor_flow(hass, name="Working helper")
+    with patch("custom_components.dew_point.async_setup_entry", return_value=True):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _sensor_input()
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Working helper"
+
+
+async def test_user_flow_shows_unknown_error_for_unexpected_validation_failure(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Unexpected source validation errors stay inside the config flow."""
+    _set_sources(hass)
+    result = await _start_sensor_flow(hass)
+
+    with patch(
+        "custom_components.dew_point.config_flow._validate_humidity_source",
+        side_effect=RuntimeError("unexpected validation failure"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], _sensor_input()
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "unknown"}
+    assert "Unexpected error validating configuration" in caplog.text
+
+
 async def test_options_flow_updates_and_schedules_reload(
     hass: HomeAssistant,
 ) -> None:
