@@ -13,7 +13,8 @@
       "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
       "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
       "invalid_condensation_threshold": "Enter a condensation threshold from -20 to 20 °C",
-      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C"
+      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C",
+      "unknown": "An unexpected error occurred while validating the configuration"
     },
     "step": {
       "user": {
@@ -98,7 +99,8 @@
       "invalid_humidity_sensor": "Select a relative humidity sensor that reports a value from 0 to 100%",
       "invalid_surface_temperature_sensor": "Select a surface temperature sensor with a supported temperature unit",
       "invalid_condensation_threshold": "Enter a condensation threshold from -20 to 20 °C",
-      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C"
+      "invalid_hysteresis": "Enter a hysteresis value from 0 to 20 °C",
+      "unknown": "An unexpected error occurred while validating the configuration"
     },
     "step": {
       "init": {
@@ -232,6 +234,24 @@
         }
       }
     },
+    "weather_source_unavailable": {
+      "title": "{helper_name}: weather source {entity_id} remains unavailable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a weather entity with valid temperature and humidity attributes"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the weather source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} has remained unavailable. Restore its integration or select a replacement weather entity.",
+            "data": {
+              "replacement_entity": "Replacement weather source"
+            }
+          }
+        }
+      }
+    },
     "temperature_source_missing": {
       "title": "{helper_name}: temperature source {entity_id} is missing",
       "fix_flow": {
@@ -261,6 +281,24 @@
           "replace_source": {
             "title": "Replace the temperature source",
             "description": "The configured source `{current_entity_id}` for {helper_name} is no longer a compatible temperature sensor. Select a replacement.",
+            "data": {
+              "replacement_entity": "Replacement temperature source"
+            }
+          }
+        }
+      }
+    },
+    "temperature_source_unavailable": {
+      "title": "{helper_name}: temperature source {entity_id} remains unavailable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} has remained unavailable. Restore its integration or select a replacement temperature sensor.",
             "data": {
               "replacement_entity": "Replacement temperature source"
             }
@@ -304,6 +342,24 @@
         }
       }
     },
+    "humidity_source_unavailable": {
+      "title": "{helper_name}: relative humidity source {entity_id} remains unavailable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a relative humidity sensor that reports a percentage"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the relative humidity source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} has remained unavailable. Restore its integration or select a replacement relative humidity sensor.",
+            "data": {
+              "replacement_entity": "Replacement relative humidity source"
+            }
+          }
+        }
+      }
+    },
     "surface_temperature_source_missing": {
       "title": "{helper_name}: surface temperature source {entity_id} is missing",
       "fix_flow": {
@@ -333,6 +389,24 @@
           "replace_source": {
             "title": "Replace the surface temperature source",
             "description": "The configured source `{current_entity_id}` for {helper_name} is no longer a compatible temperature sensor. Select a replacement, or remove the surface source from the helper settings.",
+            "data": {
+              "replacement_entity": "Replacement surface temperature source"
+            }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_unavailable": {
+      "title": "{helper_name}: surface temperature source {entity_id} remains unavailable",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "The selected entity does not exist",
+          "replacement_incompatible": "Select a surface temperature sensor with a supported temperature unit"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Replace the surface temperature source",
+            "description": "The configured source `{current_entity_id}` for {helper_name} has remained unavailable. Restore its integration, select a replacement, or remove the surface source from the helper settings.",
             "data": {
               "replacement_entity": "Replacement surface temperature source"
             }

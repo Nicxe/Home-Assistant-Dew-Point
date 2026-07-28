@@ -16,6 +16,7 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
             "entity": "{name} condensation risk",
             "issue": "Replace the surface temperature source",
             "weather_issue": "Replace the weather source",
+            "unavailable_issue": "{helper_name}: weather source {entity_id} remains unavailable",
         },
         "sv": {
             "config": "Skapa en daggpunktshjälpare",
@@ -23,6 +24,7 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
             "entity": "{name} kondensrisk",
             "issue": "Ersätt yttemperaturkällan",
             "weather_issue": "Ersätt väderkällan",
+            "unavailable_issue": "{helper_name}: väderkällan {entity_id} är fortfarande otillgänglig",
         },
         "fr": {
             "config": "Créer un assistant Point de rosée",
@@ -30,6 +32,7 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
             "entity": "{name} risque de condensation",
             "issue": "Remplacer la source de température de surface",
             "weather_issue": "Remplacer la source météo",
+            "unavailable_issue": "{helper_name} : la source météo {entity_id} reste indisponible",
         },
     }
 
@@ -63,4 +66,8 @@ async def test_english_swedish_and_french_translations_load(hass) -> None:
                 "component.dew_point.issues.weather_source_missing.fix_flow.step.replace_source.title"
             ]
             == text["weather_issue"]
+        )
+        assert (
+            issues["component.dew_point.issues.weather_source_unavailable.title"]
+            == text["unavailable_issue"]
         )

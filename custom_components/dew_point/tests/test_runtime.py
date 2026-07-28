@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 from unittest.mock import Mock, call, patch
 
@@ -302,6 +303,111 @@ async def test_runtime_marks_unavailable_and_actionable_problems(
         )
 
 
+async def test_runtime_delays_unavailable_repair_and_clears_it_on_recovery(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Persistent unavailability creates a delayed repair cleared on recovery."""
+    _set_temperature(hass, "sensor.temperature", 20)
+    _set_humidity(hass, 50)
+    entry = _entry(surface=False)
+    entry.add_to_hass(hass)
+    cancel_delayed_issue = Mock()
+    caplog.set_level(logging.INFO, logger="custom_components.dew_point.runtime")
+
+    with (
+        patch(
+            "custom_components.dew_point.runtime.async_call_later",
+            return_value=cancel_delayed_issue,
+        ) as call_later,
+        patch(
+            "custom_components.dew_point.runtime.async_update_source_issue"
+        ) as update_issue,
+    ):
+        runtime = DewPointRuntime(hass, entry)
+        runtime.async_start()
+        update_issue.reset_mock()
+
+        hass.states.async_set(
+            "sensor.humidity",
+            STATE_UNAVAILABLE,
+            {
+                ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
+                ATTR_UNIT_OF_MEASUREMENT: PERCENTAGE,
+            },
+        )
+        await hass.async_block_till_done()
+
+        call_later.assert_called_once()
+        assert (
+            call_later.call_args.args[1] is runtime_module._UNAVAILABLE_REPAIR_DELAY  # noqa: SLF001
+        )
+        update_issue.assert_not_called()
+        runtime_records = [
+            record
+            for record in caplog.records
+            if record.name == "custom_components.dew_point.runtime"
+        ]
+        assert any(
+            record.getMessage().startswith("Sources temporarily unavailable")
+            for record in runtime_records
+        )
+        assert not any(record.levelno >= logging.WARNING for record in runtime_records)
+
+        delayed_issue_callback = call_later.call_args.args[2]
+        delayed_issue_callback(datetime.now(UTC))
+        update_issue.assert_called_once_with(
+            hass,
+            entry,
+            CONF_HUMIDITY_SENSOR,
+            SourceIssueType.UNAVAILABLE,
+            entity_id="sensor.humidity",
+        )
+        assert "Source has remained unavailable for Cellar: humidity_sensor" in (
+            caplog.text
+        )
+
+        update_issue.reset_mock()
+        _set_humidity(hass, 50)
+        await hass.async_block_till_done()
+        update_issue.assert_called_once_with(
+            hass,
+            entry,
+            CONF_HUMIDITY_SENSOR,
+            None,
+            entity_id="sensor.humidity",
+        )
+
+
+async def test_runtime_cancels_pending_unavailable_repair_on_stop(
+    hass: HomeAssistant,
+) -> None:
+    """Unloading the helper cancels delayed repair callbacks."""
+    er.async_get(hass).async_get_or_create(
+        "sensor",
+        "test",
+        "temperature",
+        suggested_object_id="temperature",
+        original_device_class=SensorDeviceClass.TEMPERATURE,
+    )
+    _set_humidity(hass, 50)
+    entry = _entry(surface=False)
+    entry.add_to_hass(hass)
+    cancel_delayed_issue = Mock()
+
+    with (
+        patch(
+            "custom_components.dew_point.runtime.async_call_later",
+            return_value=cancel_delayed_issue,
+        ),
+        patch("custom_components.dew_point.runtime.async_update_source_issue"),
+    ):
+        runtime = DewPointRuntime(hass, entry)
+        runtime.async_start()
+        runtime.async_stop()
+
+    cancel_delayed_issue.assert_called_once_with()
+
+
 async def test_runtime_uses_registry_metadata_and_converts_units(
     hass: HomeAssistant,
 ) -> None:
@@ -364,15 +470,12 @@ async def test_registered_but_unloaded_source_is_transient(
         runtime.async_refresh()
 
     assert runtime.source_statuses[CONF_TEMPERATURE_SENSOR] is SourceStatus.UNAVAILABLE
-    assert (
-        call(
-            hass,
-            entry,
-            CONF_TEMPERATURE_SENSOR,
-            None,
-            entity_id="sensor.temperature",
-        )
-        in update_issue.call_args_list
+    update_issue.assert_called_once_with(
+        hass,
+        entry,
+        CONF_HUMIDITY_SENSOR,
+        None,
+        entity_id="sensor.humidity",
     )
 
 
