@@ -13,7 +13,8 @@
       "invalid_humidity_sensor": "Välj en sensor för relativ luftfuktighet som rapporterar ett värde från 0 till 100 %",
       "invalid_surface_temperature_sensor": "Välj en yttemperatursensor med en temperaturenhet som stöds",
       "invalid_condensation_threshold": "Ange ett kondenströskelvärde från -20 till 20 °C",
-      "invalid_hysteresis": "Ange ett hysteresvärde från 0 till 20 °C"
+      "invalid_hysteresis": "Ange ett hysteresvärde från 0 till 20 °C",
+      "unknown": "Ett oväntat fel inträffade när konfigurationen validerades"
     },
     "step": {
       "user": {
@@ -103,7 +104,8 @@
       "invalid_humidity_sensor": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]",
       "invalid_surface_temperature_sensor": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]",
       "invalid_condensation_threshold": "[%key:component::dew_point::config::error::invalid_condensation_threshold%]",
-      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]"
+      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]",
+      "unknown": "[%key:component::dew_point::config::error::unknown%]"
     },
     "step": {
       "init": {
@@ -220,6 +222,22 @@
         }
       }
     },
+    "weather_source_unavailable": {
+      "title": "{helper_name}: väderkällan {entity_id} är fortfarande otillgänglig",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_weather_entity%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt väderkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} har varit otillgänglig en längre tid. Återställ dess integration eller välj en ny väderentitet.",
+            "data": { "replacement_entity": "Ny väderkälla" }
+          }
+        }
+      }
+    },
     "temperature_source_missing": {
       "title": "{helper_name}: temperaturkällan {entity_id} saknas",
       "fix_flow": {
@@ -247,6 +265,22 @@
           "replace_source": {
             "title": "Ersätt temperaturkällan",
             "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} är inte längre en kompatibel temperatursensor. Välj en ersättare.",
+            "data": { "replacement_entity": "Ny temperaturkälla" }
+          }
+        }
+      }
+    },
+    "temperature_source_unavailable": {
+      "title": "{helper_name}: temperaturkällan {entity_id} är fortfarande otillgänglig",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt temperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} har varit otillgänglig en längre tid. Återställ dess integration eller välj en ny temperatursensor.",
             "data": { "replacement_entity": "Ny temperaturkälla" }
           }
         }
@@ -284,6 +318,22 @@
         }
       }
     },
+    "humidity_source_unavailable": {
+      "title": "{helper_name}: källan för relativ luftfuktighet {entity_id} är fortfarande otillgänglig",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt källan för relativ luftfuktighet",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} har varit otillgänglig en längre tid. Återställ dess integration eller välj en ny sensor för relativ luftfuktighet.",
+            "data": { "replacement_entity": "Ny källa för relativ luftfuktighet" }
+          }
+        }
+      }
+    },
     "surface_temperature_source_missing": {
       "title": "{helper_name}: yttemperaturkällan {entity_id} saknas",
       "fix_flow": {
@@ -311,6 +361,22 @@
           "replace_source": {
             "title": "Ersätt yttemperaturkällan",
             "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} är inte längre en kompatibel temperatursensor. Välj en ersättare eller ta bort yttemperaturkällan i hjälparens inställningar.",
+            "data": { "replacement_entity": "Ny yttemperaturkälla" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_unavailable": {
+      "title": "{helper_name}: yttemperaturkällan {entity_id} är fortfarande otillgänglig",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "Den valda entiteten finns inte",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Ersätt yttemperaturkällan",
+            "description": "Den konfigurerade källan `{current_entity_id}` för {helper_name} har varit otillgänglig en längre tid. Återställ dess integration, välj en ersättare eller ta bort yttemperaturkällan i hjälparens inställningar.",
             "data": { "replacement_entity": "Ny yttemperaturkälla" }
           }
         }

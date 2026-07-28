@@ -13,7 +13,8 @@
       "invalid_humidity_sensor": "Sélectionnez un capteur d’humidité relative qui indique une valeur comprise entre 0 et 100 %",
       "invalid_surface_temperature_sensor": "Sélectionnez un capteur de température de surface utilisant une unité prise en charge",
       "invalid_condensation_threshold": "Saisissez un seuil de condensation compris entre -20 et 20 °C",
-      "invalid_hysteresis": "Saisissez une valeur d’hystérésis comprise entre 0 et 20 °C"
+      "invalid_hysteresis": "Saisissez une valeur d’hystérésis comprise entre 0 et 20 °C",
+      "unknown": "Une erreur inattendue s’est produite lors de la validation de la configuration"
     },
     "step": {
       "user": {
@@ -103,7 +104,8 @@
       "invalid_humidity_sensor": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]",
       "invalid_surface_temperature_sensor": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]",
       "invalid_condensation_threshold": "[%key:component::dew_point::config::error::invalid_condensation_threshold%]",
-      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]"
+      "invalid_hysteresis": "[%key:component::dew_point::config::error::invalid_hysteresis%]",
+      "unknown": "[%key:component::dew_point::config::error::unknown%]"
     },
     "step": {
       "init": {
@@ -220,6 +222,22 @@
         }
       }
     },
+    "weather_source_unavailable": {
+      "title": "{helper_name} : la source météo {entity_id} reste indisponible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_weather_entity%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source météo",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} reste indisponible. Rétablissez son intégration ou sélectionnez une entité météo de remplacement.",
+            "data": { "replacement_entity": "Nouvelle source météo" }
+          }
+        }
+      }
+    },
     "temperature_source_missing": {
       "title": "{helper_name} : la source de température {entity_id} est introuvable",
       "fix_flow": {
@@ -247,6 +265,22 @@
           "replace_source": {
             "title": "Remplacer la source de température",
             "description": "La source configurée `{current_entity_id}` pour {helper_name} n’est plus un capteur de température compatible. Sélectionnez un remplacement.",
+            "data": { "replacement_entity": "Nouvelle source de température" }
+          }
+        }
+      }
+    },
+    "temperature_source_unavailable": {
+      "title": "{helper_name} : la source de température {entity_id} reste indisponible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} reste indisponible. Rétablissez son intégration ou sélectionnez un capteur de température de remplacement.",
             "data": { "replacement_entity": "Nouvelle source de température" }
           }
         }
@@ -284,6 +318,22 @@
         }
       }
     },
+    "humidity_source_unavailable": {
+      "title": "{helper_name} : la source d’humidité relative {entity_id} reste indisponible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_humidity_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source d’humidité relative",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} reste indisponible. Rétablissez son intégration ou sélectionnez un capteur d’humidité relative de remplacement.",
+            "data": { "replacement_entity": "Nouvelle source d’humidité relative" }
+          }
+        }
+      }
+    },
     "surface_temperature_source_missing": {
       "title": "{helper_name} : la source de température de surface {entity_id} est introuvable",
       "fix_flow": {
@@ -311,6 +361,22 @@
           "replace_source": {
             "title": "Remplacer la source de température de surface",
             "description": "La source configurée `{current_entity_id}` pour {helper_name} n’est plus un capteur de température compatible. Sélectionnez un remplacement ou supprimez la source de surface dans les paramètres de l’assistant.",
+            "data": { "replacement_entity": "Nouvelle source de température de surface" }
+          }
+        }
+      }
+    },
+    "surface_temperature_source_unavailable": {
+      "title": "{helper_name} : la source de température de surface {entity_id} reste indisponible",
+      "fix_flow": {
+        "error": {
+          "replacement_missing": "L’entité sélectionnée n’existe pas",
+          "replacement_incompatible": "[%key:component::dew_point::config::error::invalid_surface_temperature_sensor%]"
+        },
+        "step": {
+          "replace_source": {
+            "title": "Remplacer la source de température de surface",
+            "description": "La source configurée `{current_entity_id}` pour {helper_name} reste indisponible. Rétablissez son intégration, sélectionnez un remplacement ou supprimez la source de surface dans les paramètres de l’assistant.",
             "data": { "replacement_entity": "Nouvelle source de température de surface" }
           }
         }

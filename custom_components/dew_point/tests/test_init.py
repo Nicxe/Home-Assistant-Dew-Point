@@ -173,6 +173,35 @@ async def test_full_setup_updates_and_unloads_entities(hass: HomeAssistant) -> N
     assert hass.states.get(risk_entity_id).state == STATE_UNAVAILABLE
 
 
+async def test_setup_with_missing_source_stays_loaded_and_creates_repair(
+    hass: HomeAssistant,
+) -> None:
+    """A missing source marks entities unavailable without blocking setup."""
+    entry = _canonical_entry()
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id) is True
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    dew_point_entity_id = er.async_get(hass).async_get_entity_id(
+        SENSOR_DOMAIN, DOMAIN, f"{entry.entry_id}_dew_point"
+    )
+    assert dew_point_entity_id is not None
+    dew_point_state = hass.states.get(dew_point_entity_id)
+    assert dew_point_state is not None
+    assert dew_point_state.state == STATE_UNAVAILABLE
+    humidity_issue = ir.async_get(hass).async_get_issue(
+        DOMAIN,
+        source_issue_id(
+            entry.entry_id,
+            CONF_HUMIDITY_SENSOR,
+            SourceIssueType.MISSING,
+        ),
+    )
+    assert humidity_issue is not None
+
+
 async def test_source_entity_rename_updates_options_and_reloads(
     hass: HomeAssistant,
 ) -> None:
