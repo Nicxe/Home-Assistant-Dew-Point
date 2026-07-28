@@ -2,7 +2,14 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [beta, main]
+    paths:
+      - ".github/workflows/release.yml"
+      - "custom_components/**"
+      - "hacs.json"
+      - "package-lock.json"
+      - "package.json"
+      - "release.config.cjs"
 
 permissions:
   contents: write
