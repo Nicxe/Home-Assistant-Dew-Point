@@ -131,37 +131,37 @@
         }
       },
       "sensors": {
-        "title": "[%key:component::dew_point::config::step::sensors::title%]",
+        "title": "Select sensor sources",
         "description": "Select separate sensors for air temperature and relative humidity. Changes take effect immediately after saving.",
         "data": {
-          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::temperature_sensor%]",
-          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data::humidity_sensor%]",
-          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data::surface_temperature_sensor%]",
-          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data::condensation_threshold%]",
-          "hysteresis": "[%key:component::dew_point::config::step::sensors::data::hysteresis%]"
+          "temperature_sensor": "Temperature source",
+          "humidity_sensor": "Relative humidity source",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
         },
         "data_description": {
-          "temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::temperature_sensor%]",
-          "humidity_sensor": "[%key:component::dew_point::config::step::sensors::data_description::humidity_sensor%]",
-          "surface_temperature_sensor": "[%key:component::dew_point::config::step::sensors::data_description::surface_temperature_sensor%]",
-          "condensation_threshold": "[%key:component::dew_point::config::step::sensors::data_description::condensation_threshold%]",
-          "hysteresis": "[%key:component::dew_point::config::step::sensors::data_description::hysteresis%]"
+          "temperature_sensor": "The air temperature sensor used for all calculations.",
+          "humidity_sensor": "The relative humidity sensor used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
         }
       },
       "weather": {
-        "title": "[%key:component::dew_point::config::step::weather::title%]",
+        "title": "Select a weather source",
         "description": "Use the current temperature and humidity attributes from one weather entity. Changes take effect immediately after saving.",
         "data": {
-          "weather_entity": "[%key:component::dew_point::config::step::weather::data::weather_entity%]",
-          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data::surface_temperature_sensor%]",
-          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data::condensation_threshold%]",
-          "hysteresis": "[%key:component::dew_point::config::step::weather::data::hysteresis%]"
+          "weather_entity": "Weather entity",
+          "surface_temperature_sensor": "Surface temperature source (optional)",
+          "condensation_threshold": "Condensation threshold",
+          "hysteresis": "Condensation hysteresis"
         },
         "data_description": {
-          "weather_entity": "[%key:component::dew_point::config::step::weather::data_description::weather_entity%]",
-          "surface_temperature_sensor": "[%key:component::dew_point::config::step::weather::data_description::surface_temperature_sensor%]",
-          "condensation_threshold": "[%key:component::dew_point::config::step::weather::data_description::condensation_threshold%]",
-          "hysteresis": "[%key:component::dew_point::config::step::weather::data_description::hysteresis%]"
+          "weather_entity": "The weather entity whose current temperature and humidity attributes are used for all calculations.",
+          "surface_temperature_sensor": "The surface temperature to compare with dew point. Leave empty if no surface is monitored.",
+          "condensation_threshold": "The surface-to-dew-point margin at or below which condensation risk turns on.",
+          "hysteresis": "The additional margin required before condensation risk turns off, preventing rapid switching near the threshold."
         }
       }
     }

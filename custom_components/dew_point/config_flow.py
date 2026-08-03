@@ -201,6 +201,15 @@ async def _options_weather_schema(handler: SchemaCommonFlowHandler) -> vol.Schem
     )
 
 
+async def _options_description_placeholders(
+    handler: SchemaCommonFlowHandler,
+) -> dict[str, str]:
+    """Return placeholders used by the options flow title."""
+    parent = cast(SchemaOptionsFlowHandler, handler.parent_handler)
+    name = parent.options.get(CONF_NAME, parent.config_entry.title)
+    return {"name": str(name)}
+
+
 async def _next_source_step(options: dict[str, Any]) -> str:
     """Continue to the form for the selected source type."""
     return cast(str, options[CONF_SOURCE_TYPE])
@@ -510,6 +519,7 @@ OPTIONS_FLOW = {
         schema=CONFIG_SCHEMA,
         validate_user_input=_validate_source_type,
         next_step=_next_source_step,
+        description_placeholders=_options_description_placeholders,
     ),
     SOURCE_TYPE_SENSORS: SchemaFlowFormStep(
         schema=_options_sensors_schema,
