@@ -242,7 +242,7 @@ class SourceRepairFlow(RepairsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Start the source replacement flow."""
-        return await self.async_step_replace_source(user_input)
+        return await self.async_step_replace_source()
 
     async def async_step_replace_source(
         self, user_input: dict[str, Any] | None = None
