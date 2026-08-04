@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import StrEnum
 import logging
 import math
@@ -33,7 +32,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_call_later, async_track_state_change_event
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from .calculation import MoistAirProperties, calculate_moist_air_properties
@@ -59,7 +58,6 @@ from .const import (
 from .repairs import SourceIssueType, async_update_source_issue
 
 _LOGGER = logging.getLogger(__name__)
-_UNAVAILABLE_REPAIR_DELAY = timedelta(minutes=5)
 
 type RuntimeListener = Callable[[], None]
 
@@ -142,7 +140,6 @@ class DewPointRuntime:
         self.source_statuses: dict[str, SourceStatus] = {}
         self._listeners: set[RuntimeListener] = set()
         self._unsub_state_listener: Callable[[], None] | None = None
-        self._unavailable_issue_unsubs: dict[str, Callable[[], None]] = {}
         self._active_issues: dict[str, SourceIssueType | None] = {}
         self._logged_problem_signature: tuple[tuple[str, SourceStatus], ...] = ()
 
@@ -165,9 +162,6 @@ class DewPointRuntime:
         if self._unsub_state_listener is not None:
             self._unsub_state_listener()
             self._unsub_state_listener = None
-        for cancel_unavailable_issue in self._unavailable_issue_unsubs.values():
-            cancel_unavailable_issue()
-        self._unavailable_issue_unsubs.clear()
         self._listeners.clear()
 
     @property
@@ -432,11 +426,6 @@ class DewPointRuntime:
         }
         for source_key, reading in readings.items():
             entity_id = source_ids[source_key]
-            if reading.status is SourceStatus.UNAVAILABLE:
-                self._schedule_unavailable_issue(source_key, entity_id)
-                continue
-
-            self._cancel_unavailable_issue(source_key)
             issue_type = {
                 SourceStatus.MISSING: SourceIssueType.MISSING,
                 SourceStatus.INCOMPATIBLE: SourceIssueType.INCOMPATIBLE,
@@ -454,63 +443,6 @@ class DewPointRuntime:
                 entity_id=entity_id,
             )
             self._active_issues[source_key] = issue_type
-
-    @callback
-    def _schedule_unavailable_issue(
-        self, source_key: str, entity_id: str | None
-    ) -> None:
-        """Create a repair only when a source stays unavailable."""
-        if (
-            source_key in self._unavailable_issue_unsubs
-            or self._active_issues.get(source_key) is SourceIssueType.UNAVAILABLE
-        ):
-            return
-
-        if (
-            source_key in self._active_issues
-            and self._active_issues[source_key] is not None
-        ):
-            async_update_source_issue(
-                self.hass,
-                self.entry,
-                source_key,
-                None,
-                entity_id=entity_id,
-            )
-        self._active_issues[source_key] = None
-
-        @callback
-        def async_create_unavailable_issue(_now: datetime) -> None:
-            self._unavailable_issue_unsubs.pop(source_key, None)
-            if self.source_statuses.get(source_key) is not SourceStatus.UNAVAILABLE:
-                return
-            async_update_source_issue(
-                self.hass,
-                self.entry,
-                source_key,
-                SourceIssueType.UNAVAILABLE,
-                entity_id=entity_id,
-            )
-            self._active_issues[source_key] = SourceIssueType.UNAVAILABLE
-            _LOGGER.warning(
-                "Source has remained unavailable for %s: %s",
-                self.entry.title,
-                source_key,
-            )
-
-        self._unavailable_issue_unsubs[source_key] = async_call_later(
-            self.hass,
-            _UNAVAILABLE_REPAIR_DELAY,
-            async_create_unavailable_issue,
-        )
-
-    @callback
-    def _cancel_unavailable_issue(self, source_key: str) -> None:
-        """Cancel a pending unavailable-source repair."""
-        if cancel_unavailable_issue := self._unavailable_issue_unsubs.pop(
-            source_key, None
-        ):
-            cancel_unavailable_issue()
 
     def _log_status_transition(self, statuses: dict[str, SourceStatus]) -> None:
         """Log source problems once and recovery once."""
