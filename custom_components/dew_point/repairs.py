@@ -54,7 +54,7 @@ _TEMPERATURE_SOURCE_KEYS = {
 
 
 class SourceIssueType(StrEnum):
-    """Persistent, user-actionable source failures."""
+    """Source failures, including legacy issue types retained for cleanup."""
 
     MISSING = "missing"
     INCOMPATIBLE = "incompatible"
@@ -90,17 +90,12 @@ def async_update_source_issue(
     *,
     entity_id: str | None = None,
 ) -> None:
-    """Create or clear a persistent source issue.
-
-    ``UNAVAILABLE`` must only be passed after the source has remained unavailable
-    beyond the runtime grace period, so normal startup ordering does not create
-    transient issues.
-    """
+    """Create or clear a persistent source issue."""
     if source_key not in _SOURCE_KINDS:
         raise ValueError(f"Unsupported source key: {source_key}")
 
     async_clear_source_issues(hass, entry.entry_id, source_key)
-    if issue_type is None:
+    if issue_type in (None, SourceIssueType.UNAVAILABLE):
         return
 
     source_kind = _SOURCE_KINDS[source_key]
