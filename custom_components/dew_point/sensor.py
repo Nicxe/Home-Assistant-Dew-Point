@@ -13,7 +13,6 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    CONCENTRATION_GRAMS_PER_CUBIC_METER,
     UnitOfPressure,
     UnitOfTemperature,
 )
@@ -26,6 +25,15 @@ from .const import (
     OUTPUT_UNIT_FAHRENHEIT,
 )
 from .runtime import DewPointRuntime, DewPointRuntimeData
+
+try:
+    from homeassistant.const import UnitOfDensity
+except ImportError:  # Home Assistant < 2026.8
+    from homeassistant.const import (
+        CONCENTRATION_GRAMS_PER_CUBIC_METER as GRAMS_PER_CUBIC_METER,
+    )
+else:
+    GRAMS_PER_CUBIC_METER = UnitOfDensity.GRAMS_PER_CUBIC_METER
 
 ATTR_TEMPERATURE = "temperature"
 ATTR_TEMPERATURE_UNIT = "temperature_unit"
@@ -75,7 +83,7 @@ SENSOR_DESCRIPTIONS: tuple[DewPointSensorEntityDescription, ...] = (
         key="absolute_humidity",
         translation_key="absolute_humidity",
         icon="mdi:water-percent",
-        native_unit_of_measurement=CONCENTRATION_GRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=GRAMS_PER_CUBIC_METER,
         device_class=SensorDeviceClass.ABSOLUTE_HUMIDITY,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=2,
