@@ -10,10 +10,10 @@
     "semantic-release": "^25.0.5"
   },
   "overrides": {
-    "tar": ">=7.5.8",
-    "npm": ">=11.18.0",
+    "tar": ">=7.5.22",
+    "npm": "11.19.0",
     "cross-spawn": "^7.0.6",
-    "brace-expansion": "^2.0.2",
+    "brace-expansion": ">=5.0.9",
     "picomatch": ">=4.0.4"
   }
 }
