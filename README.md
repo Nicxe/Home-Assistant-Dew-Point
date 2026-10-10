@@ -423,4 +423,4 @@ The integration includes English, French, and Swedish user-interface translation
 
 Before reporting a problem, review **Troubleshooting**, check Home Assistant Repairs, and download the integration diagnostics. Report reproducible issues in the [GitHub issue tracker](https://github.com/Nicxe/home-assistant-dew-point/issues).
 
-If you find the project useful, you can support its development at [Buy Me a Coffee](https://buymeacoffee.com/niklasv).
+If you find the project useful, the best way to support its development is through a [one-time or monthly GitHub sponsorship](https://github.com/sponsors/Nicxe). You can also [buy Niklas a coffee](https://buymeacoffee.com/niklasv) as a quick thank-you.
